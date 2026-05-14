@@ -1,0 +1,30 @@
+{
+  "name": "nest-scaffolder",
+  "version": "0.1.0",
+  "description": "Rails-like resource scaffolder for NestJS APIs using TypeORM.",
+  "type": "module",
+  "bin": {
+    "nest-scaffold": "./bin/nest-scaffold.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "smoke": "node ./bin/nest-scaffold.js generate resource post title:string body:text published:boolean --dry-run"
+  },
+  "keywords": [
+    "nestjs",
+    "scaffold",
+    "typeorm",
+    "cli",
+    "generator"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
+}

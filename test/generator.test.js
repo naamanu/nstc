@@ -1,0 +1,93 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { generateResource } from '../src/generator.js';
+
+test('generates NestJS CRUD files and a TypeORM migration', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-'));
+
+  try {
+    const result = await generateResource({
+      cwd,
+      src: 'src',
+      resourceDir: 'resources',
+      migrationDir: 'migrations',
+      resource: 'post',
+      timestamp: '20260514123456',
+      dryRun: false,
+      force: false,
+      fields: [
+        { name: 'title', type: 'string', optional: false },
+        { name: 'body', type: 'text', optional: false },
+        { name: 'published', type: 'boolean', optional: true }
+      ]
+    });
+
+    assert.equal(result.files.length, 7);
+    assert.ok(existsSync(path.join(cwd, 'src/resources/posts/posts.module.ts')));
+    assert.ok(existsSync(path.join(cwd, 'src/migrations/20260514123456-CreatePosts.ts')));
+
+    const entity = await readFile(path.join(cwd, 'src/resources/posts/entities/post.entity.ts'), 'utf8');
+    assert.match(entity, /@Entity\('posts'\)/);
+    assert.match(entity, /published\?: boolean;/);
+
+    const migration = await readFile(path.join(cwd, 'src/migrations/20260514123456-CreatePosts.ts'), 'utf8');
+    assert.match(migration, /export class CreatePosts20260514123456/);
+    assert.match(migration, /await queryRunner.dropTable\('posts', true\)/);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test('dry run does not write files', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-'));
+
+  try {
+    const result = await generateResource({
+      cwd,
+      src: 'src',
+      resourceDir: 'resources',
+      migrationDir: 'migrations',
+      resource: 'user',
+      timestamp: '20260514123456',
+      dryRun: true,
+      force: false,
+      fields: [{ name: 'email', type: 'string', optional: false }]
+    });
+
+    assert.equal(result.files.length, 7);
+    assert.equal(existsSync(path.join(cwd, 'src')), false);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test('refuses to overwrite existing files without force', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-'));
+
+  try {
+    const target = path.join(cwd, 'src/resources/posts/posts.module.ts');
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, 'existing', 'utf8');
+
+    await assert.rejects(
+      () => generateResource({
+        cwd,
+        src: 'src',
+        resourceDir: 'resources',
+        migrationDir: 'migrations',
+        resource: 'post',
+        timestamp: '20260514123456',
+        dryRun: false,
+        force: false,
+        fields: [{ name: 'title', type: 'string', optional: false }]
+      }),
+      /Refusing to overwrite/
+    );
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
