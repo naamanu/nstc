@@ -58,7 +58,7 @@ test('sqlite migration uses text for json columns', () => {
     },
   );
 
-  assert.match(migration, /name: 'meta',\n            type: 'text'/);
+  assert.match(migration, /name: 'meta',\n {12}type: 'text'/);
   assert.match(migration, /default: 'datetime\('now'\)'/);
 });
 

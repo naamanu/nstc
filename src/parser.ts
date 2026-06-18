@@ -160,7 +160,7 @@ function parseSharedOptions(tokens: string[], config: Partial<ScaffoldConfig>) {
   return { options, fieldTokens };
 }
 
-export async function parseCommand(argv: string[]): Promise<ParsedCommand> {
+export function parseCommand(argv: string[]): ParsedCommand {
   const cwd = extractCwd(argv) ?? process.cwd();
   const config = loadConfig(cwd);
   return parseArgs(argv, config);

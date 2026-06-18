@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import type { GenerateCommand, ResourceNames, ScaffoldConfig } from './models.js';
+import type { ResourceNames, ScaffoldConfig } from './models.js';
 
 interface WireModuleInput {
   moduleName: string;

@@ -12,8 +12,8 @@ import type {
   PlannedFile,
 } from './models.js';
 
-export async function runCli(argv: string[], io: CliIo = process as CliIo): Promise<void> {
-  const command = await parseCommand(argv);
+export async function runCli(argv: string[], io: CliIo = process): Promise<void> {
+  const command = parseCommand(argv);
 
   if ('help' in command) {
     io.stdout.write(`${usage()}\n`);

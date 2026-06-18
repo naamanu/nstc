@@ -28,7 +28,7 @@ test('loads defaults from .nstcrc.json', async () => {
     });
 
     const command = asGenerateCommand(
-      await parseCommand(['generate', 'resource', 'post', 'title:string', '--cwd', cwd]),
+      parseCommand(['generate', 'resource', 'post', 'title:string', '--cwd', cwd]),
     );
 
     assert.equal(command.resourceDir, 'features');
@@ -46,7 +46,7 @@ test('cli flags override config file defaults', async () => {
     await writeFile(path.join(cwd, '.nstcrc.json'), JSON.stringify({ db: 'mysql' }), 'utf8');
 
     const command = asGenerateCommand(
-      await parseCommand([
+      parseCommand([
         'generate',
         'resource',
         'post',

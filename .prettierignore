@@ -1,0 +1,7 @@
+dist/
+node_modules/
+package-lock.json
+
+# Markdown/docs are formatted as part of their own work, not the code-tooling
+# pass — keeps this gate from churning prose and conflicting with doc branches.
+*.md

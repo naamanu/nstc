@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -41,7 +41,7 @@ test('serial id strategy renders integer primary key and ParseIntPipe service ty
   const service = renderService(names, { idStrategy: 'serial' });
   const migration = renderMigration(names, [], '20260514123456', { idStrategy: 'serial' });
 
-  assert.match(entity, /@PrimaryGeneratedColumn\(\)\n  id: number;/);
+  assert.match(entity, /@PrimaryGeneratedColumn\(\)\n {2}id: number;/);
   assert.match(service, /async findOne\(id: number\)/);
   assert.match(migration, /generationStrategy: 'increment'/);
 });
