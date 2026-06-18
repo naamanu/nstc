@@ -186,3 +186,31 @@ test('refuses to overwrite existing files without force', async () => {
     await rm(cwd, { recursive: true, force: true });
   }
 });
+
+test('--force overwrites existing files', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
+
+  try {
+    const target = path.join(cwd, 'src/resources/posts/posts.module.ts');
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, 'existing content', 'utf8');
+
+    const result = await generateResource(
+      makeGenerateCommand({
+        cwd,
+        resource: 'post',
+        timestamp: '20260514123456',
+        dryRun: false,
+        force: true,
+        fields: [{ name: 'title', type: 'string', optional: false, unique: false, relation: null }],
+      }),
+    );
+
+    assert.equal(result.files.length, 7);
+    const content = await readFile(target, 'utf8');
+    assert.doesNotMatch(content, /existing content/);
+    assert.match(content, /PostModule/);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});

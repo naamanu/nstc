@@ -12,6 +12,7 @@
     "AGENTS.md"
   ],
   "scripts": {
+    "prepare": "npm run build",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
