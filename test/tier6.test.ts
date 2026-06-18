@@ -63,7 +63,7 @@ test('soft delete adds deletedAt and uses softRemove', () => {
 });
 
 test('destroy removes resource directory and matching migration', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-destroy-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-destroy-'));
 
   try {
     await generateResource(makeGenerateCommand({
@@ -88,7 +88,7 @@ test('destroy removes resource directory and matching migration', async () => {
 });
 
 test('destroy dry run reports paths without deleting files', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-destroy-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-destroy-'));
 
   try {
     await mkdir(path.join(cwd, 'src/resources/posts'), { recursive: true });

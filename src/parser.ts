@@ -217,14 +217,14 @@ export function parseField(token: string): FieldDefinition {
 export function usage(): string {
   return [
     'Usage:',
-    '  nest-scaffold generate resource <name> <field:type...> [options]',
-    '  nest-scaffold destroy resource <name> [options]',
-    '  nest-scaffold list-types',
+    '  nstc generate resource <name> <field:type...> [options]',
+    '  nstc destroy resource <name> [options]',
+    '  nstc list-types',
     '',
     'Examples:',
-    '  nest-scaffold generate resource post title:string body:text published:boolean',
-    '  nest-scaffold generate resource user email:string:unique profileId:uuid:belongsTo:Profile',
-    '  nest-scaffold destroy resource post --dry-run',
+    '  nstc generate resource post title:string body:text published:boolean',
+    '  nstc generate resource user email:string:unique profileId:uuid:belongsTo:Profile',
+    '  nstc destroy resource post --dry-run',
     '',
     'Field modifiers:',
     '  :unique              Unique column constraint',
@@ -249,7 +249,7 @@ export function usage(): string {
     '  --help                  Show this help',
     '',
     'Config:',
-    '  Reads defaults from .nest-scaffoldrc.json or package.json "nestScaffold".'
+    '  Reads defaults from .nstcrc.json or package.json "nstc".'
   ].join('\n');
 }
 

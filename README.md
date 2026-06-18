@@ -1,9 +1,9 @@
-# nest-scaffolder
+# nstc
 
 Rails-like resource scaffolding for NestJS APIs that use TypeORM.
 
 ```bash
-nest-scaffold generate resource post title:string body:text published?:boolean
+nstc generate resource post title:string body:text published?:boolean
 ```
 
 The command creates a NestJS module, controller, service, DTOs, TypeORM entity, and a timestamped migration. It creates files only and prints the module wiring steps after generation.
@@ -22,13 +22,13 @@ During development:
 
 ```bash
 npm test
-npm run build && node ./dist/bin/nest-scaffold.js generate resource post title:string --dry-run
+npm run build && node ./dist/bin/nstc.js generate resource post title:string --dry-run
 ```
 
 From a NestJS app:
 
 ```bash
-nest-scaffold generate resource post title:string body:text published?:boolean
+nstc generate resource post title:string body:text published?:boolean
 ```
 
 ## Generated layout
@@ -52,8 +52,8 @@ Use `name:type` for required fields and `name?:type` for optional fields.
 Optional fields contain `?`, which zsh treats as a glob. Quote them or use `--field`:
 
 ```bash
-nest-scaffold generate resource post title:string 'published?:boolean'
-nest-scaffold generate resource post --field title:string --field published?:boolean
+nstc generate resource post title:string 'published?:boolean'
+nstc generate resource post --field title:string --field published?:boolean
 ```
 
 Supported types:
@@ -92,7 +92,7 @@ Field modifiers:
 
 ## Config
 
-Defaults can live in `.nest-scaffoldrc.json` or in `package.json` under `"nestScaffold"`:
+Defaults can live in `.nstcrc.json` or in `package.json` under `"nstc"`:
 
 ```json
 {
@@ -107,8 +107,8 @@ CLI flags override config file values.
 ## Utility commands
 
 ```bash
-nest-scaffold --version
-nest-scaffold list-types
+nstc --version
+nstc list-types
 ```
 
 ## Examples
@@ -116,40 +116,40 @@ nest-scaffold list-types
 Preview generated files:
 
 ```bash
-nest-scaffold generate resource post title:string body:text published?:boolean --dry-run
+nstc generate resource post title:string body:text published?:boolean --dry-run
 ```
 
 Generate into a custom feature directory:
 
 ```bash
-nest-scaffold g scaffold user email:string admin?:boolean --resource-dir features
+nstc g scaffold user email:string admin?:boolean --resource-dir features
 ```
 
 MySQL migration with Swagger and pagination:
 
 ```bash
-nest-scaffold generate resource post title:string body:text \
+nstc generate resource post title:string body:text \
   --db mysql --swagger --pagination --dry-run
 ```
 
 Preview file contents and wire into `app.module.ts`:
 
 ```bash
-nest-scaffold generate resource post title:string \
+nstc generate resource post title:string \
   --dry-run --verbose --wire src/app.module.ts
 ```
 
 Remove a scaffolded resource:
 
 ```bash
-nest-scaffold destroy resource post --dry-run
-nest-scaffold destroy resource post
+nstc destroy resource post --dry-run
+nstc destroy resource post
 ```
 
 Generate with unique fields, relations, serial IDs, and soft delete:
 
 ```bash
-nest-scaffold generate resource comment body:text \
+nstc generate resource comment body:text \
   postId:uuid:belongsTo:Post \
   --id serial --soft-delete
 ```

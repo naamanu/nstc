@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import type { ScaffoldConfig } from './models.js';
 
-const CONFIG_FILE = '.nest-scaffoldrc.json';
+const CONFIG_FILE = '.nstcrc.json';
 
 type ConfigKey = keyof Pick<
   ScaffoldConfig,
@@ -47,7 +47,7 @@ function readPackageConfig(filePath: string): Record<string, unknown> {
 
   try {
     const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as Record<string, unknown>;
-    const config = parsed.nestScaffold ?? parsed['nest-scaffold'];
+    const config = parsed.nstc;
     return typeof config === 'object' && config !== null ? config as Record<string, unknown> : {};
   } catch {
     return {};

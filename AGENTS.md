@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Guidance for AI coding agents working in **nest-scaffolder**.
+Guidance for AI coding agents working in **nstc**.
 
 ## What this project is
 
-A zero-dependency Node.js CLI (`nest-scaffold`) that scaffolds Rails-style NestJS + TypeORM CRUD resources into a host app. It writes files only — it does not modify the host app's runtime or run migrations.
+A zero-dependency Node.js CLI (`nstc`) that scaffolds Rails-style NestJS + TypeORM CRUD resources into a host app. It writes files only — it does not modify the host app's runtime or run migrations.
 
 ```bash
 npm run build     # tsc → dist/
@@ -17,10 +17,10 @@ Node **>= 20**, ESM, TypeScript source compiled to `dist/`. Runtime dependencies
 ## Architecture (the spine)
 
 ```
-bin/nest-scaffold.ts
+bin/nstc.ts
   └─ src/cli.ts              # I/O, format output, route commands
        └─ src/parser.ts      # argv → command object (+ config merge)
-            └─ src/config.ts  # .nest-scaffoldrc.json / package.json nestScaffold
+            └─ src/config.ts  # .nstcrc.json / package.json nstc
        ├─ src/generator.ts   # plan files → write (generate)
        ├─ src/destroy.ts     # remove resource dir + matching migration
        └─ src/wire.ts        # optional app.module.ts import wiring
@@ -77,7 +77,7 @@ Reserved field names (rejected): `id`, `createdAt`, `updatedAt`, `deletedAt`.
 | `--verbose` | off | Print generated file contents |
 | `--force` | off | Overwrite existing files |
 
-Config file: `.nest-scaffoldrc.json` or `package.json` → `"nestScaffold"`. CLI flags override config.
+Config file: `.nstcrc.json` or `package.json` → `"nstc"`. CLI flags override config.
 
 ## Conventions when changing code
 

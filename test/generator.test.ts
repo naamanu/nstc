@@ -8,7 +8,7 @@ import { generateResource } from '../src/generator.js';
 import { makeGenerateCommand } from './helpers.js';
 
 test('generates NestJS CRUD files and a TypeORM migration', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
 
   try {
     const result = await generateResource(makeGenerateCommand({
@@ -47,7 +47,7 @@ test('generates NestJS CRUD files and a TypeORM migration', async () => {
 });
 
 test('dry run does not write files', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
 
   try {
     const result = await generateResource(makeGenerateCommand({
@@ -66,7 +66,7 @@ test('dry run does not write files', async () => {
 });
 
 test('refuses to overwrite existing files without force', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
 
   try {
     const target = path.join(cwd, 'src/resources/posts/posts.module.ts');
