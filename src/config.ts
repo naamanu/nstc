@@ -9,6 +9,8 @@ type ConfigKey = keyof Pick<
   | 'src'
   | 'resourceDir'
   | 'migrationDir'
+  | 'entityDir'
+  | 'dtoDir'
   | 'db'
   | 'stringLength'
   | 'idStrategy'
@@ -22,6 +24,8 @@ const CONFIG_KEYS: ConfigKey[] = [
   'src',
   'resourceDir',
   'migrationDir',
+  'entityDir',
+  'dtoDir',
   'db',
   'stringLength',
   'idStrategy',

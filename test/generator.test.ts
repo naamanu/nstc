@@ -81,6 +81,84 @@ test('dry run does not write files', async () => {
   }
 });
 
+test('honors custom entityDir and dtoDir in paths and imports', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
+
+  try {
+    await generateResource(
+      makeGenerateCommand({
+        cwd,
+        resource: 'post',
+        timestamp: '20260514123456',
+        dryRun: false,
+        entityDir: 'models',
+        dtoDir: 'dtos',
+        fields: [{ name: 'title', type: 'string', optional: false, unique: false, relation: null }],
+      }),
+    );
+
+    assert.ok(existsSync(path.join(cwd, 'src/resources/posts/models/post.entity.ts')));
+    assert.ok(existsSync(path.join(cwd, 'src/resources/posts/dtos/create-post.dto.ts')));
+    assert.equal(existsSync(path.join(cwd, 'src/resources/posts/entities')), false);
+
+    const service = await readFile(path.join(cwd, 'src/resources/posts/posts.service.ts'), 'utf8');
+    assert.match(service, /from '\.\/models\/post\.entity'/);
+    assert.match(service, /from '\.\/dtos\/create-post\.dto'/);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test('--only limits generation to the requested kinds', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
+
+  try {
+    const result = await generateResource(
+      makeGenerateCommand({
+        cwd,
+        resource: 'post',
+        timestamp: '20260514123456',
+        dryRun: false,
+        only: ['module', 'service'],
+        fields: [{ name: 'title', type: 'string', optional: false, unique: false, relation: null }],
+      }),
+    );
+
+    assert.equal(result.files.length, 2);
+    assert.ok(existsSync(path.join(cwd, 'src/resources/posts/posts.module.ts')));
+    assert.ok(existsSync(path.join(cwd, 'src/resources/posts/posts.service.ts')));
+    assert.equal(existsSync(path.join(cwd, 'src/resources/posts/posts.controller.ts')), false);
+    assert.equal(existsSync(path.join(cwd, 'src/migrations')), false);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test('--skip excludes the given kinds', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
+
+  try {
+    const result = await generateResource(
+      makeGenerateCommand({
+        cwd,
+        resource: 'post',
+        timestamp: '20260514123456',
+        dryRun: false,
+        skip: ['migration', 'dto'],
+        fields: [{ name: 'title', type: 'string', optional: false, unique: false, relation: null }],
+      }),
+    );
+
+    // 7 total - 2 dto files - 1 migration = 4
+    assert.equal(result.files.length, 4);
+    assert.equal(existsSync(path.join(cwd, 'src/migrations')), false);
+    assert.equal(existsSync(path.join(cwd, 'src/resources/posts/dto')), false);
+    assert.ok(existsSync(path.join(cwd, 'src/resources/posts/entities/post.entity.ts')));
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
 test('refuses to overwrite existing files without force', async () => {
   const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
 

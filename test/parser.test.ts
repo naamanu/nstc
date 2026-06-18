@@ -45,6 +45,34 @@ test('rejects unknown field types', () => {
   assert.throws(() => parseField('payload:xml'), /Unknown type/);
 });
 
+test('parses --only, --skip, and directory overrides', () => {
+  const command = asGenerateCommand(
+    parseArgs([
+      'generate',
+      'resource',
+      'post',
+      'title:string',
+      '--only',
+      'module,service',
+      '--entity-dir',
+      'models',
+      '--dto-dir',
+      'dtos',
+    ]),
+  );
+
+  assert.deepEqual(command.only, ['module', 'service']);
+  assert.equal(command.entityDir, 'models');
+  assert.equal(command.dtoDir, 'dtos');
+});
+
+test('rejects unknown file kinds in --skip', () => {
+  assert.throws(
+    () => parseArgs(['generate', 'resource', 'post', 'title:string', '--skip', 'bogus']),
+    /Unknown file kind "bogus"/,
+  );
+});
+
 test('parses repeated --field options', () => {
   const command = asGenerateCommand(
     parseArgs([

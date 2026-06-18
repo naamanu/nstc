@@ -1,6 +1,7 @@
 import type {
   DestroyCommand,
   FieldDefinition,
+  FileKind,
   GenerateCommand,
   ParsedCommand,
 } from '../src/models.js';
@@ -10,6 +11,8 @@ export const defaultScaffoldOptions = {
   src: 'src',
   resourceDir: 'resources',
   migrationDir: 'migrations',
+  entityDir: 'entities',
+  dtoDir: 'dto',
   db: 'postgres' as const,
   stringLength: 255,
   idStrategy: 'uuid' as const,
@@ -21,6 +24,8 @@ export const defaultScaffoldOptions = {
   verbose: false,
   wire: null,
   inflections: {},
+  only: [] as FileKind[],
+  skip: [] as FileKind[],
 };
 
 export function makeField(

@@ -59,9 +59,21 @@ function formatGenerateResult(result: GenerateResult, command: GenerateCommand):
     `${result.names.kebabPlural}.module`,
   ].join('/');
   const verb = result.dryRun ? 'Would create' : 'Created';
+  // On a dry run, surface the resolved names so wrong pluralization/casing is
+  // caught before any files are written.
+  const namePreview = result.dryRun
+    ? [
+        '',
+        'Resolved names:',
+        `  class:  ${result.names.className} / ${result.names.pluralClassName}`,
+        `  table:  ${result.names.tableName}`,
+        `  route:  /${result.names.route}`,
+      ]
+    : [];
   const lines = [
     `${verb} ${result.files.length} files for ${result.names.className}:`,
     ...result.files.map((file) => `  - ${file}`),
+    ...namePreview,
     '',
     'Next steps:',
     `  1. Import ${result.names.className}Module from './${modulePath}'.`,

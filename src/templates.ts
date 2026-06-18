@@ -23,6 +23,8 @@ function renderOptions(options: Partial<RenderOptions> = {}): RenderOptions {
     idStrategy: options.idStrategy ?? 'uuid',
     softDelete: options.softDelete ?? false,
     resourceDir: options.resourceDir ?? 'resources',
+    entityDir: options.entityDir ?? 'entities',
+    dtoDir: options.dtoDir ?? 'dto',
   };
 }
 
@@ -45,13 +47,13 @@ export function renderModule(
   const relatedImports = related
     .map(
       (target) =>
-        `import { ${target.className} } from '${relationEntityImport(names, target, config.resourceDir)}';`,
+        `import { ${target.className} } from '${relationEntityImport(names, target, config.resourceDir, config.entityDir)}';`,
     )
     .join('\n');
 
   return `import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ${names.className} } from './entities/${names.kebab}.entity';
+import { ${names.className} } from './${config.entityDir}/${names.kebab}.entity';
 ${relatedImports ? `${relatedImports}\n` : ''}import { ${names.className}Controller } from './${names.kebabPlural}.controller';
 import { ${names.className}Service } from './${names.kebabPlural}.service';
 
@@ -102,8 +104,8 @@ export function renderController(
     : '';
 
   return `import { ${commonImports.join(', ')}${queryImport} } from '@nestjs/common';${swaggerImports}
-import { Create${names.className}Dto } from './dto/create-${names.kebab}.dto';
-import { Update${names.className}Dto } from './dto/update-${names.kebab}.dto';
+import { Create${names.className}Dto } from './${config.dtoDir}/create-${names.kebab}.dto';
+import { Update${names.className}Dto } from './${config.dtoDir}/update-${names.kebab}.dto';
 import { ${names.className}Service } from './${names.kebabPlural}.service';
 ${paginationHelper}${swaggerDecorator}
 @Controller('${names.route}')
@@ -157,9 +159,9 @@ export function renderService(names: ResourceNames, options: Partial<RenderOptio
   return `import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Create${names.className}Dto } from './dto/create-${names.kebab}.dto';
-import { Update${names.className}Dto } from './dto/update-${names.kebab}.dto';
-import { ${names.className} } from './entities/${names.kebab}.entity';
+import { Create${names.className}Dto } from './${config.dtoDir}/create-${names.kebab}.dto';
+import { Update${names.className}Dto } from './${config.dtoDir}/update-${names.kebab}.dto';
+import { ${names.className} } from './${config.entityDir}/${names.kebab}.entity';
 
 @Injectable()
 export class ${names.className}Service {
@@ -353,7 +355,7 @@ function renderEntityField(
     const propertyName = relationPropertyName(field, targetNames);
     entityImports.set(targetNames.className, {
       className: targetNames.className,
-      importPath: relationEntityImport(names, targetNames, config.resourceDir),
+      importPath: relationEntityImport(names, targetNames, config.resourceDir, config.entityDir),
     });
     lines.push(`  @ManyToOne(() => ${targetNames.className}, { onDelete: 'CASCADE' })
   @JoinColumn({ name: '${field.name}' })

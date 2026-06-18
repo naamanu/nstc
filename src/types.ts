@@ -3,6 +3,7 @@ import type {
   DbDialect,
   FieldDefinition,
   FieldType,
+  FileKind,
   GenerateCommand,
   IdStrategy,
   MigrationColumnSpec,
@@ -172,6 +173,8 @@ export function resolveRenderOptions(command: ScaffoldConfig | GenerateCommand):
     idStrategy: command.idStrategy ?? 'uuid',
     softDelete: command.softDelete ?? false,
     resourceDir: command.resourceDir ?? 'resources',
+    entityDir: command.entityDir ?? 'entities',
+    dtoDir: command.dtoDir ?? 'dto',
   };
 }
 
@@ -179,13 +182,23 @@ export function resolveRelationTarget(className: string): ResourceNames {
   return buildNames(className);
 }
 
+// Selection predicate for --only/--skip: an explicit `only` list is a whitelist;
+// otherwise everything is included except kinds listed in `skip`.
+export function includeKind(kind: FileKind, only: FileKind[], skip: FileKind[]): boolean {
+  if (only.length > 0) {
+    return only.includes(kind);
+  }
+  return !skip.includes(kind);
+}
+
 export function relationEntityImport(
   currentNames: ResourceNames,
   targetNames: ResourceNames,
   resourceDir: string,
+  entityDir: string,
 ): string {
-  const from = `${resourceDir}/${currentNames.kebabPlural}/entities`;
-  const to = `${resourceDir}/${targetNames.kebabPlural}/entities/${targetNames.kebab}.entity`;
+  const from = `${resourceDir}/${currentNames.kebabPlural}/${entityDir}`;
+  const to = `${resourceDir}/${targetNames.kebabPlural}/${entityDir}/${targetNames.kebab}.entity`;
   const segments = to.split('/').filter(Boolean);
   const fromSegments = from.split('/').filter(Boolean);
   let shared = 0;

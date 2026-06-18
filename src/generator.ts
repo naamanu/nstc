@@ -2,8 +2,14 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { buildNames } from './naming.js';
-import type { GenerateCommand, GenerateResult, PlannedFile, RenderOptions } from './models.js';
-import { resolveRenderOptions } from './types.js';
+import type {
+  FileKind,
+  GenerateCommand,
+  GenerateResult,
+  PlannedFile,
+  RenderOptions,
+} from './models.js';
+import { includeKind, resolveRenderOptions } from './types.js';
 import {
   renderController,
   renderCreateDto,
@@ -56,27 +62,47 @@ function planFiles(
   const baseDir = path.join(command.src, command.resourceDir, names.kebabPlural);
   const migrationDir = path.join(command.src, command.migrationDir);
   const migrationFile = `${timestamp}-Create${names.pluralClassName}.ts`;
-  const files: Array<[string, string]> = [
-    [`${baseDir}/${names.kebabPlural}.module.ts`, renderModule(names, command.fields, options)],
-    [`${baseDir}/${names.kebabPlural}.controller.ts`, renderController(names, options)],
-    [`${baseDir}/${names.kebabPlural}.service.ts`, renderService(names, options)],
-    [`${baseDir}/entities/${names.kebab}.entity.ts`, renderEntity(names, command.fields, options)],
+  const files: Array<[FileKind, string, string]> = [
     [
-      `${baseDir}/dto/create-${names.kebab}.dto.ts`,
+      'module',
+      `${baseDir}/${names.kebabPlural}.module.ts`,
+      renderModule(names, command.fields, options),
+    ],
+    [
+      'controller',
+      `${baseDir}/${names.kebabPlural}.controller.ts`,
+      renderController(names, options),
+    ],
+    ['service', `${baseDir}/${names.kebabPlural}.service.ts`, renderService(names, options)],
+    [
+      'entity',
+      `${baseDir}/${command.entityDir}/${names.kebab}.entity.ts`,
+      renderEntity(names, command.fields, options),
+    ],
+    [
+      'dto',
+      `${baseDir}/${command.dtoDir}/create-${names.kebab}.dto.ts`,
       renderCreateDto(names, command.fields, options),
     ],
-    [`${baseDir}/dto/update-${names.kebab}.dto.ts`, renderUpdateDto(names, options)],
     [
+      'dto',
+      `${baseDir}/${command.dtoDir}/update-${names.kebab}.dto.ts`,
+      renderUpdateDto(names, options),
+    ],
+    [
+      'migration',
       `${migrationDir}/${migrationFile}`,
       renderMigration(names, command.fields, timestamp, options),
     ],
   ];
 
-  return files.map(([relativePath, content]) => ({
-    relativePath,
-    absolutePath: path.resolve(command.cwd, relativePath),
-    content,
-  }));
+  return files
+    .filter(([kind]) => includeKind(kind, command.only, command.skip))
+    .map(([, relativePath, content]) => ({
+      relativePath,
+      absolutePath: path.resolve(command.cwd, relativePath),
+      content,
+    }));
 }
 
 function createTimestamp(): string {

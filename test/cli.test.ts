@@ -67,6 +67,18 @@ test('verbose dry-run prints generated file contents', async () => {
   assert.match(output, /ParseUUIDPipe/);
 });
 
+test('dry-run previews resolved names so wrong plurals are caught early', async () => {
+  const io = captureIo();
+
+  await runCli(['generate', 'resource', 'person', 'name:string', '--dry-run'], io);
+
+  const output = io.getOutput();
+  assert.match(output, /Resolved names:/);
+  assert.match(output, /class:\s+Person \/ People/);
+  assert.match(output, /table:\s+people/);
+  assert.match(output, /route:\s+\/people/);
+});
+
 test('wires generated module into app.module.ts', async () => {
   const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-wire-'));
 

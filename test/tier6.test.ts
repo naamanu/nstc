@@ -86,6 +86,37 @@ test('destroy removes resource directory and matching migration', async () => {
   }
 });
 
+test('destroy honors --skip to leave matching files in place', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-destroy-'));
+
+  try {
+    await generateResource(
+      makeGenerateCommand({
+        cwd,
+        resource: 'post',
+        timestamp: '20260514123456',
+        dryRun: false,
+      }),
+    );
+
+    const result = await destroyResource(
+      makeDestroyCommand({
+        cwd,
+        resource: 'post',
+        dryRun: false,
+        skip: ['migration'],
+      }),
+    );
+
+    // Only the resource folder is removed; the migration is left untouched.
+    assert.equal(result.removed.length, 1);
+    assert.equal(existsSync(path.join(cwd, 'src/resources/posts')), false);
+    assert.equal(existsSync(path.join(cwd, 'src/migrations/20260514123456-CreatePosts.ts')), true);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
 test('destroy dry run reports paths without deleting files', async () => {
   const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-destroy-'));
 

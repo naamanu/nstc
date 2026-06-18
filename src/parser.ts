@@ -3,11 +3,13 @@ import type {
   DbDialect,
   DestroyCommand,
   FieldDefinition,
+  FileKind,
   GenerateCommand,
   IdStrategy,
   ParsedCommand,
   ScaffoldConfig,
 } from './models.js';
+import { FILE_KINDS } from './models.js';
 import { TYPE_ALIASES, SUPPORTED_DBS, SUPPORTED_ID_STRATEGIES } from './types.js';
 
 const RESERVED_FIELD_NAMES = new Set(['id', 'createdAt', 'updatedAt', 'deletedAt']);
@@ -17,6 +19,8 @@ const DEFAULT_OPTIONS: ScaffoldConfig = {
   src: 'src',
   resourceDir: 'resources',
   migrationDir: 'migrations',
+  entityDir: 'entities',
+  dtoDir: 'dto',
   db: 'postgres',
   stringLength: 255,
   idStrategy: 'uuid',
@@ -28,6 +32,8 @@ const DEFAULT_OPTIONS: ScaffoldConfig = {
   verbose: false,
   wire: null,
   inflections: {},
+  only: [],
+  skip: [],
 };
 
 export function parseArgs(argv: string[], config: Partial<ScaffoldConfig> = {}): ParsedCommand {
@@ -137,6 +143,14 @@ function parseSharedOptions(tokens: string[], config: Partial<ScaffoldConfig>) {
       options.resourceDir = readOptionValue(tokens, ++index, '--resource-dir');
     } else if (token === '--migration-dir') {
       options.migrationDir = readOptionValue(tokens, ++index, '--migration-dir');
+    } else if (token === '--entity-dir') {
+      options.entityDir = readOptionValue(tokens, ++index, '--entity-dir');
+    } else if (token === '--dto-dir') {
+      options.dtoDir = readOptionValue(tokens, ++index, '--dto-dir');
+    } else if (token === '--only') {
+      options.only = readKindList(tokens, ++index, '--only');
+    } else if (token === '--skip') {
+      options.skip = readKindList(tokens, ++index, '--skip');
     } else if (token === '--cwd') {
       options.cwd = readOptionValue(tokens, ++index, '--cwd');
     } else if (token === '--db') {
@@ -238,6 +252,10 @@ export function usage(): string {
     '  --src <dir>             Source directory. Default: src',
     '  --resource-dir <dir>    Resource directory under --src. Default: resources',
     '  --migration-dir <dir>   Migration directory under --src. Default: migrations',
+    '  --entity-dir <dir>      Entity subdirectory in the resource folder. Default: entities',
+    '  --dto-dir <dir>         DTO subdirectory in the resource folder. Default: dto',
+    '  --only <kinds>          Generate only these comma-separated file kinds',
+    '  --skip <kinds>          Skip these comma-separated file kinds',
     '  --db <dialect>          Database dialect: postgres, mysql, sqlite. Default: postgres',
     '  --id <strategy>         Primary key strategy: uuid, serial. Default: uuid',
     '  --string-length <n>     Default varchar length for string fields. Default: 255',
@@ -331,4 +349,22 @@ function readIdStrategyOption(tokens: string[], index: number): IdStrategy {
 function readStringLengthOption(tokens: string[], index: number): number {
   const value = readOptionValue(tokens, index, '--string-length');
   return validateStringLength(Number.parseInt(value, 10));
+}
+
+function readKindList(tokens: string[], index: number, optionName: string): FileKind[] {
+  const value = readOptionValue(tokens, index, optionName);
+  const kinds = value
+    .split(',')
+    .map((kind) => kind.trim())
+    .filter(Boolean);
+
+  for (const kind of kinds) {
+    if (!FILE_KINDS.includes(kind as FileKind)) {
+      throw new Error(
+        `Unknown file kind "${kind}" for ${optionName}. Use one of: ${FILE_KINDS.join(', ')}.`,
+      );
+    }
+  }
+
+  return kinds as FileKind[];
 }
