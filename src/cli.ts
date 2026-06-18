@@ -92,7 +92,11 @@ function formatVerbose(plannedFiles: PlannedFile[]): string {
 
 function formatWireResult(result: Awaited<ReturnType<typeof wireAppModule>>): string {
   if (!result.wired) {
-    return `Module wiring skipped for ${result.modulePath}: ${result.reason}.\n`;
+    const detail =
+      result.reason === 'unparseable'
+        ? 'could not find an @Module imports array to update — add the import manually'
+        : result.reason;
+    return `Module wiring skipped for ${result.modulePath}: ${detail}.\n`;
   }
 
   const verb = result.dryRun ? 'Would wire' : 'Wired';

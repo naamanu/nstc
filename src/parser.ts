@@ -278,22 +278,37 @@ function validateFields(fields: FieldDefinition[]): void {
   }
 }
 
-function validateConfigOptions(options: ScaffoldConfig): void {
-  if (!SUPPORTED_DBS.includes(options.db)) {
+// Single source of truth for each rule + message. Both the CLI option readers
+// (which validate flag values) and validateConfigOptions (which validates the
+// merged config-file values that bypass the readers) delegate here, so the
+// rules cannot drift apart.
+function validateDb(value: string): DbDialect {
+  if (!SUPPORTED_DBS.includes(value as DbDialect)) {
+    throw new Error(`Unsupported database "${value}". Use one of: ${SUPPORTED_DBS.join(', ')}.`);
+  }
+  return value as DbDialect;
+}
+
+function validateIdStrategy(value: string): IdStrategy {
+  if (!SUPPORTED_ID_STRATEGIES.includes(value as IdStrategy)) {
     throw new Error(
-      `Unsupported database "${options.db}". Use one of: ${SUPPORTED_DBS.join(', ')}.`,
+      `Unsupported id strategy "${value}". Use one of: ${SUPPORTED_ID_STRATEGIES.join(', ')}.`,
     );
   }
+  return value as IdStrategy;
+}
 
-  if (!SUPPORTED_ID_STRATEGIES.includes(options.idStrategy)) {
-    throw new Error(
-      `Unsupported id strategy "${options.idStrategy}". Use one of: ${SUPPORTED_ID_STRATEGIES.join(', ')}.`,
-    );
-  }
-
-  if (!Number.isInteger(options.stringLength) || options.stringLength <= 0) {
+function validateStringLength(value: number): number {
+  if (!Number.isInteger(value) || value <= 0) {
     throw new Error('--string-length must be a positive integer.');
   }
+  return value;
+}
+
+function validateConfigOptions(options: ScaffoldConfig): void {
+  validateDb(options.db);
+  validateIdStrategy(options.idStrategy);
+  validateStringLength(options.stringLength);
 }
 
 function readOptionValue(tokens: string[], index: number, optionName: string): string {
@@ -305,28 +320,14 @@ function readOptionValue(tokens: string[], index: number, optionName: string): s
 }
 
 function readDbOption(tokens: string[], index: number): DbDialect {
-  const value = readOptionValue(tokens, index, '--db').toLowerCase();
-  if (!SUPPORTED_DBS.includes(value as DbDialect)) {
-    throw new Error(`Unsupported database "${value}". Use one of: ${SUPPORTED_DBS.join(', ')}.`);
-  }
-  return value as DbDialect;
+  return validateDb(readOptionValue(tokens, index, '--db').toLowerCase());
 }
 
 function readIdStrategyOption(tokens: string[], index: number): IdStrategy {
-  const value = readOptionValue(tokens, index, '--id').toLowerCase();
-  if (!SUPPORTED_ID_STRATEGIES.includes(value as IdStrategy)) {
-    throw new Error(
-      `Unsupported id strategy "${value}". Use one of: ${SUPPORTED_ID_STRATEGIES.join(', ')}.`,
-    );
-  }
-  return value as IdStrategy;
+  return validateIdStrategy(readOptionValue(tokens, index, '--id').toLowerCase());
 }
 
 function readStringLengthOption(tokens: string[], index: number): number {
   const value = readOptionValue(tokens, index, '--string-length');
-  const length = Number.parseInt(value, 10);
-  if (!Number.isInteger(length) || length <= 0) {
-    throw new Error('--string-length must be a positive integer.');
-  }
-  return length;
+  return validateStringLength(Number.parseInt(value, 10));
 }
