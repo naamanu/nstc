@@ -57,7 +57,12 @@ function singularize(word) {
   if (word.endsWith('ses') || word.endsWith('xes') || word.endsWith('zes') || word.endsWith('ches') || word.endsWith('shes')) {
     return word.replace(/es$/, '');
   }
-  if (word.endsWith('s') && !word.endsWith('ss')) return word.slice(0, -1);
+  if (word.endsWith('s') && !word.endsWith('ss')) {
+    const stem = word.slice(0, -1);
+    if (stem.length > 1 && !stem.endsWith('u') && pluralize(stem) === word) {
+      return stem;
+    }
+  }
   return word;
 }
 

@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { buildNames } from './naming.js';
+import { resolveRenderOptions } from './types.js';
 import {
   renderController,
   renderCreateDto,
@@ -14,8 +15,9 @@ import {
 
 export async function generateResource(command) {
   const names = buildNames(command.resource);
+  const options = resolveRenderOptions(command);
   const timestamp = command.timestamp ?? createTimestamp();
-  const files = planFiles(command, names, timestamp);
+  const files = planFiles(command, names, timestamp, options);
   const existing = files.filter((file) => existsSync(file.absolutePath));
 
   if (existing.length > 0 && !command.force) {
@@ -36,22 +38,23 @@ export async function generateResource(command) {
   return {
     names,
     dryRun: command.dryRun,
-    files: files.map((file) => file.relativePath)
+    files: files.map((file) => file.relativePath),
+    plannedFiles: files
   };
 }
 
-function planFiles(command, names, timestamp) {
+function planFiles(command, names, timestamp, options) {
   const baseDir = path.join(command.src, command.resourceDir, names.kebabPlural);
   const migrationDir = path.join(command.src, command.migrationDir);
   const migrationFile = `${timestamp}-Create${names.pluralClassName}.ts`;
   const files = [
-    [`${baseDir}/${names.kebabPlural}.module.ts`, renderModule(names)],
-    [`${baseDir}/${names.kebabPlural}.controller.ts`, renderController(names)],
-    [`${baseDir}/${names.kebabPlural}.service.ts`, renderService(names)],
-    [`${baseDir}/entities/${names.kebab}.entity.ts`, renderEntity(names, command.fields)],
-    [`${baseDir}/dto/create-${names.kebab}.dto.ts`, renderCreateDto(names, command.fields)],
-    [`${baseDir}/dto/update-${names.kebab}.dto.ts`, renderUpdateDto(names)],
-    [`${migrationDir}/${migrationFile}`, renderMigration(names, command.fields, timestamp)]
+    [`${baseDir}/${names.kebabPlural}.module.ts`, renderModule(names, command.fields, options)],
+    [`${baseDir}/${names.kebabPlural}.controller.ts`, renderController(names, options)],
+    [`${baseDir}/${names.kebabPlural}.service.ts`, renderService(names, options)],
+    [`${baseDir}/entities/${names.kebab}.entity.ts`, renderEntity(names, command.fields, options)],
+    [`${baseDir}/dto/create-${names.kebab}.dto.ts`, renderCreateDto(names, command.fields, options)],
+    [`${baseDir}/dto/update-${names.kebab}.dto.ts`, renderUpdateDto(names, options)],
+    [`${migrationDir}/${migrationFile}`, renderMigration(names, command.fields, timestamp, options)]
   ];
 
   return files.map(([relativePath, content]) => ({

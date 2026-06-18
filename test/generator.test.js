@@ -20,9 +20,9 @@ test('generates NestJS CRUD files and a TypeORM migration', async () => {
       dryRun: false,
       force: false,
       fields: [
-        { name: 'title', type: 'string', optional: false },
-        { name: 'body', type: 'text', optional: false },
-        { name: 'published', type: 'boolean', optional: true }
+        { name: 'title', type: 'string', optional: false, unique: false, relation: null },
+        { name: 'body', type: 'text', optional: false, unique: false, relation: null },
+        { name: 'published', type: 'boolean', optional: true, unique: false, relation: null }
       ]
     });
 
@@ -32,7 +32,14 @@ test('generates NestJS CRUD files and a TypeORM migration', async () => {
 
     const entity = await readFile(path.join(cwd, 'src/resources/posts/entities/post.entity.ts'), 'utf8');
     assert.match(entity, /@Entity\('posts'\)/);
+    assert.match(entity, /length: 255/);
     assert.match(entity, /published\?: boolean;/);
+
+    const createDto = await readFile(path.join(cwd, 'src/resources/posts/dto/create-post.dto.ts'), 'utf8');
+    assert.match(createDto, /@IsNotEmpty\(\)/);
+
+    const controller = await readFile(path.join(cwd, 'src/resources/posts/posts.controller.ts'), 'utf8');
+    assert.match(controller, /ParseUUIDPipe/);
 
     const migration = await readFile(path.join(cwd, 'src/migrations/20260514123456-CreatePosts.ts'), 'utf8');
     assert.match(migration, /export class CreatePosts20260514123456/);
@@ -55,7 +62,7 @@ test('dry run does not write files', async () => {
       timestamp: '20260514123456',
       dryRun: true,
       force: false,
-      fields: [{ name: 'email', type: 'string', optional: false }]
+      fields: [{ name: 'email', type: 'string', optional: false, unique: false, relation: null }]
     });
 
     assert.equal(result.files.length, 7);
@@ -83,7 +90,7 @@ test('refuses to overwrite existing files without force', async () => {
         timestamp: '20260514123456',
         dryRun: false,
         force: false,
-        fields: [{ name: 'title', type: 'string', optional: false }]
+        fields: [{ name: 'title', type: 'string', optional: false, unique: false, relation: null }]
       }),
       /Refusing to overwrite/
     );
