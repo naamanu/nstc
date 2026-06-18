@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test dist/test/**/*.test.js",
+    "test": "npm run build && node --test dist/test/*.test.js",
     "smoke": "npm run build && node ./dist/bin/nstc.js generate resource post title:string body:text published:boolean --dry-run",
     "prepublishOnly": "npm run build"
   },
