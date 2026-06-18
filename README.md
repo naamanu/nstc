@@ -1,162 +1,101 @@
 # nstc
 
-Rails-like resource scaffolding for NestJS APIs that use TypeORM.
+**NestJS TypeORM Scaffolder** — a zero-runtime-dependency CLI that generates Rails-style CRUD resources for NestJS APIs backed by TypeORM.
 
 ```bash
 nstc generate resource post title:string body:text published?:boolean
 ```
 
-The command creates a NestJS module, controller, service, DTOs, TypeORM entity, and a timestamped migration. It creates files only and prints the module wiring steps after generation.
+Given a resource name and field list, `nstc` writes a NestJS module, controller, service, DTOs, TypeORM entity, and a timestamped migration into your host app. It does not run migrations or modify your app's runtime — it only creates files and prints wiring instructions.
 
-## Local use
+## Quick start
 
-From this package directory:
-
-```bash
-npm install
-npm run build
-npm link
-```
-
-During development:
+**Prerequisites:** Node.js 20+, a NestJS app with TypeORM configured.
 
 ```bash
-npm test
-npm run build && node ./dist/bin/nstc.js generate resource post title:string --dry-run
-```
+# Install globally (when published) or link locally during development
+npm install -g nstc
 
-From a NestJS app:
-
-```bash
+# From your NestJS app root
+nstc generate resource post title:string body:text published?:boolean --dry-run
 nstc generate resource post title:string body:text published?:boolean
 ```
 
-## Generated layout
+After generation, import the new module into `app.module.ts` and run your TypeORM migration:
 
-By default, a `post` resource is generated as:
+```bash
+npm run typeorm migration:run
+```
+
+See [Getting started](docs/getting-started.md) for host-app setup, module wiring, and a full walkthrough.
+
+## What you get
+
+For `nstc generate resource post title:string body:text`:
 
 ```text
-src/resources/posts/posts.module.ts
-src/resources/posts/posts.controller.ts
-src/resources/posts/posts.service.ts
-src/resources/posts/entities/post.entity.ts
-src/resources/posts/dto/create-post.dto.ts
-src/resources/posts/dto/update-post.dto.ts
+src/resources/posts/
+  posts.module.ts
+  posts.controller.ts
+  posts.service.ts
+  entities/post.entity.ts
+  dto/create-post.dto.ts
+  dto/update-post.dto.ts
 src/migrations/<timestamp>-CreatePosts.ts
 ```
 
-## Field syntax
+The controller exposes standard REST endpoints:
 
-Use `name:type` for required fields and `name?:type` for optional fields.
+| Method | Path | Action |
+|--------|------|--------|
+| `POST` | `/posts` | Create |
+| `GET` | `/posts` | List all |
+| `GET` | `/posts/:id` | Find one |
+| `PATCH` | `/posts/:id` | Update |
+| `DELETE` | `/posts/:id` | Remove |
 
-Optional fields contain `?`, which zsh treats as a glob. Quote them or use `--field`:
+Optional flags add Swagger decorators, pagination query params, soft delete, serial integer IDs, and more. See [Generated output](docs/generated-output.md).
+
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Getting started](docs/getting-started.md) | Install, prerequisites, first resource, wiring, migrations |
+| [Commands](docs/commands.md) | `generate`, `destroy`, `list-types`, flags, and aliases |
+| [Fields & types](docs/fields-and-types.md) | Field syntax, supported types, modifiers, reserved names |
+| [Configuration](docs/configuration.md) | `.nstcrc.json`, `package.json` defaults, precedence |
+| [Generated output](docs/generated-output.md) | File layout, REST API, entity/DTO/migration details |
+| [Troubleshooting](docs/troubleshooting.md) | Shell globbing, UUID setup, entity registration, `--wire` |
+
+Run `nstc --help` or `nstc list-types` at any time for a quick reference.
+
+## Common examples
 
 ```bash
-nstc generate resource post title:string 'published?:boolean'
+# Preview without writing files
+nstc generate resource post title:string --dry-run
+
+# Avoid zsh glob issues with optional fields
 nstc generate resource post --field title:string --field published?:boolean
-```
 
-Supported types:
-
-```text
-string text number int integer float boolean bool date datetime uuid json
-```
-
-Field modifiers:
-
-```text
-:unique                 Unique column (e.g. email:string:unique)
-:belongsTo:Model        Many-to-one relation (e.g. userId:uuid:belongsTo:User)
-```
-
-## Options
-
-```text
---field <name:type>     Field definition (repeatable)
---src <dir>             Source directory. Default: src
---resource-dir <dir>    Resource directory under --src. Default: resources
---migration-dir <dir>   Migration directory under --src. Default: migrations
---db <dialect>          Database dialect: postgres, mysql, sqlite. Default: postgres
---id <strategy>         Primary key strategy: uuid, serial. Default: uuid
---string-length <n>     Default varchar length for string fields. Default: 255
---soft-delete           Add deletedAt and use softRemove in the service
---swagger               Add @nestjs/swagger decorators to controller and DTOs
---pagination            Add skip/take query params to findAll
---wire <module.ts>      Import the generated module into a NestJS module file
---dry-run               Print planned files without writing them
---verbose               Print generated file contents
---force                 Overwrite generated files if they already exist
---version, -v           Print version
---help                  Show help
-```
-
-## Config
-
-Defaults can live in `.nstcrc.json` or in `package.json` under `"nstc"`:
-
-```json
-{
-  "resourceDir": "features",
-  "db": "mysql",
-  "stringLength": 120
-}
-```
-
-CLI flags override config file values.
-
-## Utility commands
-
-```bash
-nstc --version
-nstc list-types
-```
-
-## Examples
-
-Preview generated files:
-
-```bash
-nstc generate resource post title:string body:text published?:boolean --dry-run
-```
-
-Generate into a custom feature directory:
-
-```bash
-nstc g scaffold user email:string admin?:boolean --resource-dir features
-```
-
-MySQL migration with Swagger and pagination:
-
-```bash
+# MySQL + Swagger + pagination
 nstc generate resource post title:string body:text \
-  --db mysql --swagger --pagination --dry-run
-```
+  --db mysql --swagger --pagination
 
-Preview file contents and wire into `app.module.ts`:
+# Relations, unique columns, serial IDs, soft delete
+nstc generate resource comment body:text \
+  userId:uuid:belongsTo:User \
+  --id serial --soft-delete
 
-```bash
-nstc generate resource post title:string \
-  --dry-run --verbose --wire src/app.module.ts
-```
+# Auto-import into app.module.ts (best-effort string edit)
+nstc generate resource post title:string --wire src/app.module.ts
 
-Remove a scaffolded resource:
-
-```bash
+# Remove a scaffolded resource
 nstc destroy resource post --dry-run
 nstc destroy resource post
 ```
 
-Generate with unique fields, relations, serial IDs, and soft delete:
-
-```bash
-nstc generate resource comment body:text \
-  postId:uuid:belongsTo:Post \
-  --id serial --soft-delete
-```
-
 ## Host app requirements
-
-The generated files expect a NestJS app with these packages installed:
 
 ```bash
 npm install @nestjs/typeorm typeorm class-validator @nestjs/mapped-types
@@ -168,7 +107,19 @@ Add `@nestjs/swagger` when using `--swagger`:
 npm install @nestjs/swagger
 ```
 
-Generated controllers use `ParseUUIDPipe` for `:id` routes and default `string` columns to `varchar(255)`.
-Migrations default to PostgreSQL; use `--db mysql` or `--db sqlite` for other dialects.
+## Development
 
-If your app does not use TypeORM `autoLoadEntities`, add the generated entity to your TypeORM entity registration.
+From this repository:
+
+```bash
+npm install
+npm test
+npm run build
+npm link   # expose `nstc` globally for local testing
+```
+
+Contributors and AI agents: see [AGENTS.md](AGENTS.md) for architecture and conventions.
+
+## License
+
+MIT
