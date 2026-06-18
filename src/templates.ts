@@ -89,18 +89,23 @@ export function renderController(
     ? "@Query('skip') skip?: string, @Query('take') take?: string"
     : '';
   const findAllBody = config.pagination
-    ? `    return this.${names.camel}Service.findAll(
-      skip ? Number.parseInt(skip, 10) : 0,
-      take ? Number.parseInt(take, 10) : 25,
-    );`
+    ? `    return this.${names.camel}Service.findAll(toPaginationInt(skip, 0), toPaginationInt(take, 25));`
     : `    return this.${names.camel}Service.findAll();`;
   const findAllSignature = config.pagination ? `findAll(${findAllParams})` : 'findAll()';
+  // Query params are user-controlled strings; guard against NaN/negatives before
+  // they reach the repository (a bare Number.parseInt('abc') would yield NaN).
+  const paginationHelper = config.pagination
+    ? `\nfunction toPaginationInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? '', 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}\n`
+    : '';
 
   return `import { ${commonImports.join(', ')}${queryImport} } from '@nestjs/common';${swaggerImports}
 import { Create${names.className}Dto } from './dto/create-${names.kebab}.dto';
 import { Update${names.className}Dto } from './dto/update-${names.kebab}.dto';
 import { ${names.className}Service } from './${names.kebabPlural}.service';
-${swaggerDecorator}
+${paginationHelper}${swaggerDecorator}
 @Controller('${names.route}')
 export class ${names.className}Controller {
   constructor(private readonly ${names.camel}Service: ${names.className}Service) {}
@@ -141,7 +146,9 @@ export function renderService(names: ResourceNames, options: Partial<RenderOptio
     : `    await this.${names.camel}Repository.remove(${names.camel});`;
   const findAllMethod = config.pagination
     ? `  findAll(skip = 0, take = 25) {
-    return this.${names.camel}Repository.find({ skip, take });
+    const safeSkip = Number.isFinite(skip) && skip >= 0 ? skip : 0;
+    const safeTake = Number.isFinite(take) && take > 0 ? Math.min(take, 100) : 25;
+    return this.${names.camel}Repository.find({ skip: safeSkip, take: safeTake });
   }`
     : `  findAll() {
     return this.${names.camel}Repository.find();

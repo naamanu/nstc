@@ -5,7 +5,7 @@ import { buildNames } from './naming.js';
 import type { DestroyCommand, DestroyResult } from './models.js';
 
 export async function destroyResource(command: DestroyCommand): Promise<DestroyResult> {
-  const names = buildNames(command.resource);
+  const names = buildNames(command.resource, command.inflections);
   const targets = await collectDestroyTargets(command, names);
 
   if (targets.length === 0) {

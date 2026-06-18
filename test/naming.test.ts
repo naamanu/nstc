@@ -36,3 +36,38 @@ test('handles compound and inflected names', () => {
   assert.equal(box.className, 'Box');
   assert.equal(box.kebabPlural, 'boxes');
 });
+
+test('handles irregular plurals', () => {
+  const person = buildNames('person');
+  assert.equal(person.className, 'Person');
+  assert.equal(person.pluralClassName, 'People');
+  assert.equal(person.kebabPlural, 'people');
+  assert.equal(person.tableName, 'people');
+  assert.equal(person.route, 'people');
+
+  const child = buildNames('child');
+  assert.equal(child.kebabPlural, 'children');
+
+  // Round-trips: a plural input still resolves to the correct singular/plural.
+  const people = buildNames('people');
+  assert.equal(people.className, 'Person');
+  assert.equal(people.kebabPlural, 'people');
+});
+
+test('leaves uncountable nouns unchanged', () => {
+  const sheep = buildNames('sheep');
+  assert.equal(sheep.className, 'Sheep');
+  assert.equal(sheep.kebab, 'sheep');
+  assert.equal(sheep.kebabPlural, 'sheep');
+  assert.equal(sheep.tableName, 'sheep');
+});
+
+test('applies user inflection overrides', () => {
+  const names = buildNames('hero', { hero: 'heroes' });
+  assert.equal(names.className, 'Hero');
+  assert.equal(names.kebabPlural, 'heroes');
+  assert.equal(names.tableName, 'heroes');
+
+  // Without the override the algorithmic rule would produce "heros".
+  assert.equal(buildNames('hero').kebabPlural, 'heros');
+});

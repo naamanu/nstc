@@ -15,6 +15,7 @@ type ConfigKey = keyof Pick<
   | 'swagger'
   | 'pagination'
   | 'softDelete'
+  | 'inflections'
 >;
 
 const CONFIG_KEYS: ConfigKey[] = [
@@ -27,6 +28,7 @@ const CONFIG_KEYS: ConfigKey[] = [
   'swagger',
   'pagination',
   'softDelete',
+  'inflections',
 ];
 
 export function loadConfig(cwd = process.cwd()): Partial<ScaffoldConfig> {

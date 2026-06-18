@@ -16,7 +16,7 @@ import {
 import type { ResourceNames } from './models.js';
 
 export async function generateResource(command: GenerateCommand): Promise<GenerateResult> {
-  const names = buildNames(command.resource);
+  const names = buildNames(command.resource, command.inflections);
   const options = resolveRenderOptions(command);
   const timestamp = command.timestamp ?? createTimestamp();
   const files = planFiles(command, names, timestamp, options);

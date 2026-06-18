@@ -20,6 +20,7 @@ export const defaultScaffoldOptions = {
   force: false,
   verbose: false,
   wire: null,
+  inflections: {},
 };
 
 export function makeField(

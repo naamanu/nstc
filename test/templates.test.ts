@@ -79,5 +79,27 @@ test('pagination option adds skip and take query params', () => {
 
   assert.match(controller, /@Query\('skip'\)/);
   assert.match(controller, /@Query\('take'\)/);
-  assert.match(service, /find\(\{ skip, take \}\)/);
+  assert.match(service, /find\(\{ skip: safeSkip, take: safeTake \}\)/);
+});
+
+test('pagination guards against NaN and out-of-range query params', () => {
+  const controller = renderController(names, { pagination: true });
+  const service = renderService(names, { pagination: true });
+
+  // Controller parses via a NaN-safe helper rather than a bare ternary.
+  assert.match(controller, /function toPaginationInt\(/);
+  assert.match(controller, /findAll\(toPaginationInt\(skip, 0\), toPaginationInt\(take, 25\)\)/);
+  assert.doesNotMatch(controller, /skip \? Number\.parseInt/);
+
+  // Service clamps and validates as a second line of defense.
+  assert.match(service, /Number\.isFinite\(skip\)/);
+  assert.match(service, /Math\.min\(take, 100\)/);
+});
+
+test('non-paginated resources keep the simple findAll', () => {
+  const controller = renderController(names);
+  const service = renderService(names);
+
+  assert.doesNotMatch(controller, /toPaginationInt/);
+  assert.match(service, /find\(\)/);
 });

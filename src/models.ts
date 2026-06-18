@@ -52,6 +52,8 @@ export interface ScaffoldConfig {
   force: boolean;
   verbose: boolean;
   wire: string | null;
+  // Singular -> plural overrides for resource-name inflection (config-file only).
+  inflections: Record<string, string>;
 }
 
 export interface GenerateCommand extends ScaffoldConfig {

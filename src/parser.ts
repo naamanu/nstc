@@ -27,6 +27,7 @@ const DEFAULT_OPTIONS: ScaffoldConfig = {
   force: false,
   verbose: false,
   wire: null,
+  inflections: {},
 };
 
 export function parseArgs(argv: string[], config: Partial<ScaffoldConfig> = {}): ParsedCommand {
