@@ -4,10 +4,16 @@ import { parseCommand, usage } from './parser.js';
 import { formatTypeList } from './types.js';
 import { VERSION } from './version.js';
 import { wireAppModule } from './wire.js';
-import type { CliIo, DestroyResult, GenerateCommand, GenerateResult, PlannedFile } from './models.js';
+import type {
+  CliIo,
+  DestroyResult,
+  GenerateCommand,
+  GenerateResult,
+  PlannedFile,
+} from './models.js';
 
-export async function runCli(argv: string[], io: CliIo = process as CliIo): Promise<void> {
-  const command = await parseCommand(argv);
+export async function runCli(argv: string[], io: CliIo = process): Promise<void> {
+  const command = parseCommand(argv);
 
   if ('help' in command) {
     io.stdout.write(`${usage()}\n`);
@@ -50,18 +56,30 @@ function formatGenerateResult(result: GenerateResult, command: GenerateCommand):
     command.src,
     command.resourceDir,
     result.names.kebabPlural,
-    `${result.names.kebabPlural}.module`
+    `${result.names.kebabPlural}.module`,
   ].join('/');
   const verb = result.dryRun ? 'Would create' : 'Created';
+  // On a dry run, surface the resolved names so wrong pluralization/casing is
+  // caught before any files are written.
+  const namePreview = result.dryRun
+    ? [
+        '',
+        'Resolved names:',
+        `  class:  ${result.names.className} / ${result.names.pluralClassName}`,
+        `  table:  ${result.names.tableName}`,
+        `  route:  /${result.names.route}`,
+      ]
+    : [];
   const lines = [
     `${verb} ${result.files.length} files for ${result.names.className}:`,
     ...result.files.map((file) => `  - ${file}`),
+    ...namePreview,
     '',
     'Next steps:',
     `  1. Import ${result.names.className}Module from './${modulePath}'.`,
     `  2. Add ${result.names.className}Module to your root or feature module imports array.`,
     `  3. Ensure ${result.names.className} is included in your TypeORM entity registration if your app does not auto-load entities.`,
-    ''
+    '',
   ];
 
   return `${lines.join('\n')}\n`;
@@ -72,29 +90,31 @@ function formatDestroyResult(result: DestroyResult): string {
   return [
     `${verb} ${result.removed.length} paths for ${result.names.className}:`,
     ...result.removed.map((file) => `  - ${file}`),
-    ''
+    '',
   ].join('\n');
 }
 
 function formatVerbose(plannedFiles: PlannedFile[]): string {
-  const sections = plannedFiles.map((file) => [
-    `--- ${file.relativePath} ---`,
-    file.content.trimEnd(),
-    ''
-  ].join('\n'));
+  const sections = plannedFiles.map((file) =>
+    [`--- ${file.relativePath} ---`, file.content.trimEnd(), ''].join('\n'),
+  );
 
   return `${sections.join('\n')}\n`;
 }
 
 function formatWireResult(result: Awaited<ReturnType<typeof wireAppModule>>): string {
   if (!result.wired) {
-    return `Module wiring skipped for ${result.modulePath}: ${result.reason}.\n`;
+    const detail =
+      result.reason === 'unparseable'
+        ? 'could not find an @Module imports array to update — add the import manually'
+        : result.reason;
+    return `Module wiring skipped for ${result.modulePath}: ${detail}.\n`;
   }
 
   const verb = result.dryRun ? 'Would wire' : 'Wired';
   return [
     `${verb} ${result.moduleName} into ${result.modulePath}:`,
     `  import from '${result.importPath}'`,
-    ''
+    '',
   ].join('\n');
 }

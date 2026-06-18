@@ -13,6 +13,17 @@ export type FieldType =
 export type DbDialect = 'postgres' | 'mysql' | 'sqlite';
 export type IdStrategy = 'uuid' | 'serial';
 
+// The kinds of files a resource scaffold produces; used by --only/--skip selection.
+export const FILE_KINDS = [
+  'module',
+  'controller',
+  'service',
+  'entity',
+  'dto',
+  'migration',
+] as const;
+export type FileKind = (typeof FILE_KINDS)[number];
+
 export interface FieldRelation {
   kind: 'belongsTo';
   target: string;
@@ -42,6 +53,8 @@ export interface ScaffoldConfig {
   src: string;
   resourceDir: string;
   migrationDir: string;
+  entityDir: string;
+  dtoDir: string;
   db: DbDialect;
   stringLength: number;
   idStrategy: IdStrategy;
@@ -52,6 +65,12 @@ export interface ScaffoldConfig {
   force: boolean;
   verbose: boolean;
   wire: string | null;
+  // Singular -> plural overrides for resource-name inflection (config-file only).
+  inflections: Record<string, string>;
+  // File-kind selection: when `only` is non-empty, generate/destroy is limited to
+  // those kinds; otherwise any kind in `skip` is excluded.
+  only: FileKind[];
+  skip: FileKind[];
 }
 
 export interface GenerateCommand extends ScaffoldConfig {
@@ -81,6 +100,8 @@ export interface RenderOptions {
   idStrategy: IdStrategy;
   softDelete: boolean;
   resourceDir: string;
+  entityDir: string;
+  dtoDir: string;
 }
 
 export interface PlannedFile {

@@ -7,14 +7,14 @@ import {
   renderEntity,
   renderMigration,
   renderService,
-  renderUpdateDto
+  renderUpdateDto,
 } from '../src/templates.js';
 import { makeField } from './helpers.js';
 
 const names = buildNames('post');
 const fields = [
   makeField({ name: 'title', type: 'string' }),
-  makeField({ name: 'published', type: 'boolean', optional: true })
+  makeField({ name: 'published', type: 'boolean', optional: true }),
 ];
 
 test('entity columns include default string length', () => {
@@ -34,9 +34,14 @@ test('controller validates uuid route params', () => {
 });
 
 test('mysql migration uses dialect-specific column types', () => {
-  const migration = renderMigration(names, [makeField({ name: 'meta', type: 'json' })], '20260514123456', {
-    db: 'mysql'
-  });
+  const migration = renderMigration(
+    names,
+    [makeField({ name: 'meta', type: 'json' })],
+    '20260514123456',
+    {
+      db: 'mysql',
+    },
+  );
 
   assert.match(migration, /type: 'json'/);
   assert.match(migration, /default: '\(UUID\(\)\)'/);
@@ -44,11 +49,16 @@ test('mysql migration uses dialect-specific column types', () => {
 });
 
 test('sqlite migration uses text for json columns', () => {
-  const migration = renderMigration(names, [makeField({ name: 'meta', type: 'json' })], '20260514123456', {
-    db: 'sqlite'
-  });
+  const migration = renderMigration(
+    names,
+    [makeField({ name: 'meta', type: 'json' })],
+    '20260514123456',
+    {
+      db: 'sqlite',
+    },
+  );
 
-  assert.match(migration, /name: 'meta',\n            type: 'text'/);
+  assert.match(migration, /name: 'meta',\n {12}type: 'text'/);
   assert.match(migration, /default: 'datetime\('now'\)'/);
 });
 
@@ -69,5 +79,27 @@ test('pagination option adds skip and take query params', () => {
 
   assert.match(controller, /@Query\('skip'\)/);
   assert.match(controller, /@Query\('take'\)/);
-  assert.match(service, /find\(\{ skip, take \}\)/);
+  assert.match(service, /find\(\{ skip: safeSkip, take: safeTake \}\)/);
+});
+
+test('pagination guards against NaN and out-of-range query params', () => {
+  const controller = renderController(names, { pagination: true });
+  const service = renderService(names, { pagination: true });
+
+  // Controller parses via a NaN-safe helper rather than a bare ternary.
+  assert.match(controller, /function toPaginationInt\(/);
+  assert.match(controller, /findAll\(toPaginationInt\(skip, 0\), toPaginationInt\(take, 25\)\)/);
+  assert.doesNotMatch(controller, /skip \? Number\.parseInt/);
+
+  // Service clamps and validates as a second line of defense.
+  assert.match(service, /Number\.isFinite\(skip\)/);
+  assert.match(service, /Math\.min\(take, 100\)/);
+});
+
+test('non-paginated resources keep the simple findAll', () => {
+  const controller = renderController(names);
+  const service = renderService(names);
+
+  assert.doesNotMatch(controller, /toPaginationInt/);
+  assert.match(service, /find\(\)/);
 });

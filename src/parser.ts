@@ -3,11 +3,13 @@ import type {
   DbDialect,
   DestroyCommand,
   FieldDefinition,
+  FileKind,
   GenerateCommand,
   IdStrategy,
   ParsedCommand,
-  ScaffoldConfig
+  ScaffoldConfig,
 } from './models.js';
+import { FILE_KINDS } from './models.js';
 import { TYPE_ALIASES, SUPPORTED_DBS, SUPPORTED_ID_STRATEGIES } from './types.js';
 
 const RESERVED_FIELD_NAMES = new Set(['id', 'createdAt', 'updatedAt', 'deletedAt']);
@@ -17,6 +19,8 @@ const DEFAULT_OPTIONS: ScaffoldConfig = {
   src: 'src',
   resourceDir: 'resources',
   migrationDir: 'migrations',
+  entityDir: 'entities',
+  dtoDir: 'dto',
   db: 'postgres',
   stringLength: 255,
   idStrategy: 'uuid',
@@ -26,7 +30,10 @@ const DEFAULT_OPTIONS: ScaffoldConfig = {
   dryRun: false,
   force: false,
   verbose: false,
-  wire: null
+  wire: null,
+  inflections: {},
+  only: [],
+  skip: [],
 };
 
 export function parseArgs(argv: string[], config: Partial<ScaffoldConfig> = {}): ParsedCommand {
@@ -82,7 +89,7 @@ function parseGenerateCommand(tokens: string[], config: Partial<ScaffoldConfig>)
     command: 'generate',
     resource,
     fields,
-    ...options
+    ...options,
   };
 }
 
@@ -104,14 +111,14 @@ function parseDestroyCommand(tokens: string[], config: Partial<ScaffoldConfig>):
   return {
     command: 'destroy',
     resource,
-    ...options
+    ...options,
   };
 }
 
 function parseSharedOptions(tokens: string[], config: Partial<ScaffoldConfig>) {
   const options: ScaffoldConfig = {
     ...DEFAULT_OPTIONS,
-    ...config
+    ...config,
   };
   const fieldTokens: string[] = [];
 
@@ -136,6 +143,14 @@ function parseSharedOptions(tokens: string[], config: Partial<ScaffoldConfig>) {
       options.resourceDir = readOptionValue(tokens, ++index, '--resource-dir');
     } else if (token === '--migration-dir') {
       options.migrationDir = readOptionValue(tokens, ++index, '--migration-dir');
+    } else if (token === '--entity-dir') {
+      options.entityDir = readOptionValue(tokens, ++index, '--entity-dir');
+    } else if (token === '--dto-dir') {
+      options.dtoDir = readOptionValue(tokens, ++index, '--dto-dir');
+    } else if (token === '--only') {
+      options.only = readKindList(tokens, ++index, '--only');
+    } else if (token === '--skip') {
+      options.skip = readKindList(tokens, ++index, '--skip');
     } else if (token === '--cwd') {
       options.cwd = readOptionValue(tokens, ++index, '--cwd');
     } else if (token === '--db') {
@@ -160,7 +175,7 @@ function parseSharedOptions(tokens: string[], config: Partial<ScaffoldConfig>) {
   return { options, fieldTokens };
 }
 
-export async function parseCommand(argv: string[]): Promise<ParsedCommand> {
+export function parseCommand(argv: string[]): ParsedCommand {
   const cwd = extractCwd(argv) ?? process.cwd();
   const config = loadConfig(cwd);
   return parseArgs(argv, config);
@@ -188,7 +203,7 @@ export function parseField(token: string): FieldDefinition {
     type,
     optional: Boolean(optionalMark),
     unique: false,
-    relation: null
+    relation: null,
   };
 
   for (let index = 2; index < segments.length; index += 1) {
@@ -202,7 +217,9 @@ export function parseField(token: string): FieldDefinition {
     if (modifier === 'belongsTo') {
       const target = segments[++index];
       if (!target) {
-        throw new Error(`Missing relation target for field "${name}". Use name:type:belongsTo:Model.`);
+        throw new Error(
+          `Missing relation target for field "${name}". Use name:type:belongsTo:Model.`,
+        );
       }
       field.relation = { kind: 'belongsTo', target };
       continue;
@@ -235,6 +252,10 @@ export function usage(): string {
     '  --src <dir>             Source directory. Default: src',
     '  --resource-dir <dir>    Resource directory under --src. Default: resources',
     '  --migration-dir <dir>   Migration directory under --src. Default: migrations',
+    '  --entity-dir <dir>      Entity subdirectory in the resource folder. Default: entities',
+    '  --dto-dir <dir>         DTO subdirectory in the resource folder. Default: dto',
+    '  --only <kinds>          Generate only these comma-separated file kinds',
+    '  --skip <kinds>          Skip these comma-separated file kinds',
     '  --db <dialect>          Database dialect: postgres, mysql, sqlite. Default: postgres',
     '  --id <strategy>         Primary key strategy: uuid, serial. Default: uuid',
     '  --string-length <n>     Default varchar length for string fields. Default: 255',
@@ -249,7 +270,7 @@ export function usage(): string {
     '  --help                  Show this help',
     '',
     'Config:',
-    '  Reads defaults from .nstcrc.json or package.json "nstc".'
+    '  Reads defaults from .nstcrc.json or package.json "nstc".',
   ].join('\n');
 }
 
@@ -276,18 +297,37 @@ function validateFields(fields: FieldDefinition[]): void {
   }
 }
 
-function validateConfigOptions(options: ScaffoldConfig): void {
-  if (!SUPPORTED_DBS.includes(options.db)) {
-    throw new Error(`Unsupported database "${options.db}". Use one of: ${SUPPORTED_DBS.join(', ')}.`);
+// Single source of truth for each rule + message. Both the CLI option readers
+// (which validate flag values) and validateConfigOptions (which validates the
+// merged config-file values that bypass the readers) delegate here, so the
+// rules cannot drift apart.
+function validateDb(value: string): DbDialect {
+  if (!SUPPORTED_DBS.includes(value as DbDialect)) {
+    throw new Error(`Unsupported database "${value}". Use one of: ${SUPPORTED_DBS.join(', ')}.`);
   }
+  return value as DbDialect;
+}
 
-  if (!SUPPORTED_ID_STRATEGIES.includes(options.idStrategy)) {
-    throw new Error(`Unsupported id strategy "${options.idStrategy}". Use one of: ${SUPPORTED_ID_STRATEGIES.join(', ')}.`);
+function validateIdStrategy(value: string): IdStrategy {
+  if (!SUPPORTED_ID_STRATEGIES.includes(value as IdStrategy)) {
+    throw new Error(
+      `Unsupported id strategy "${value}". Use one of: ${SUPPORTED_ID_STRATEGIES.join(', ')}.`,
+    );
   }
+  return value as IdStrategy;
+}
 
-  if (!Number.isInteger(options.stringLength) || options.stringLength <= 0) {
+function validateStringLength(value: number): number {
+  if (!Number.isInteger(value) || value <= 0) {
     throw new Error('--string-length must be a positive integer.');
   }
+  return value;
+}
+
+function validateConfigOptions(options: ScaffoldConfig): void {
+  validateDb(options.db);
+  validateIdStrategy(options.idStrategy);
+  validateStringLength(options.stringLength);
 }
 
 function readOptionValue(tokens: string[], index: number, optionName: string): string {
@@ -299,26 +339,32 @@ function readOptionValue(tokens: string[], index: number, optionName: string): s
 }
 
 function readDbOption(tokens: string[], index: number): DbDialect {
-  const value = readOptionValue(tokens, index, '--db').toLowerCase();
-  if (!SUPPORTED_DBS.includes(value as DbDialect)) {
-    throw new Error(`Unsupported database "${value}". Use one of: ${SUPPORTED_DBS.join(', ')}.`);
-  }
-  return value as DbDialect;
+  return validateDb(readOptionValue(tokens, index, '--db').toLowerCase());
 }
 
 function readIdStrategyOption(tokens: string[], index: number): IdStrategy {
-  const value = readOptionValue(tokens, index, '--id').toLowerCase();
-  if (!SUPPORTED_ID_STRATEGIES.includes(value as IdStrategy)) {
-    throw new Error(`Unsupported id strategy "${value}". Use one of: ${SUPPORTED_ID_STRATEGIES.join(', ')}.`);
-  }
-  return value as IdStrategy;
+  return validateIdStrategy(readOptionValue(tokens, index, '--id').toLowerCase());
 }
 
 function readStringLengthOption(tokens: string[], index: number): number {
   const value = readOptionValue(tokens, index, '--string-length');
-  const length = Number.parseInt(value, 10);
-  if (!Number.isInteger(length) || length <= 0) {
-    throw new Error('--string-length must be a positive integer.');
+  return validateStringLength(Number.parseInt(value, 10));
+}
+
+function readKindList(tokens: string[], index: number, optionName: string): FileKind[] {
+  const value = readOptionValue(tokens, index, optionName);
+  const kinds = value
+    .split(',')
+    .map((kind) => kind.trim())
+    .filter(Boolean);
+
+  for (const kind of kinds) {
+    if (!FILE_KINDS.includes(kind as FileKind)) {
+      throw new Error(
+        `Unknown file kind "${kind}" for ${optionName}. Use one of: ${FILE_KINDS.join(', ')}.`,
+      );
+    }
   }
-  return length;
+
+  return kinds as FileKind[];
 }
