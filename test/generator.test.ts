@@ -5,26 +5,23 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { generateResource } from '../src/generator.js';
+import { makeGenerateCommand } from './helpers.js';
 
 test('generates NestJS CRUD files and a TypeORM migration', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
 
   try {
-    const result = await generateResource({
+    const result = await generateResource(makeGenerateCommand({
       cwd,
-      src: 'src',
-      resourceDir: 'resources',
-      migrationDir: 'migrations',
       resource: 'post',
       timestamp: '20260514123456',
       dryRun: false,
-      force: false,
       fields: [
         { name: 'title', type: 'string', optional: false, unique: false, relation: null },
         { name: 'body', type: 'text', optional: false, unique: false, relation: null },
         { name: 'published', type: 'boolean', optional: true, unique: false, relation: null }
       ]
-    });
+    }));
 
     assert.equal(result.files.length, 7);
     assert.ok(existsSync(path.join(cwd, 'src/resources/posts/posts.module.ts')));
@@ -50,20 +47,16 @@ test('generates NestJS CRUD files and a TypeORM migration', async () => {
 });
 
 test('dry run does not write files', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
 
   try {
-    const result = await generateResource({
+    const result = await generateResource(makeGenerateCommand({
       cwd,
-      src: 'src',
-      resourceDir: 'resources',
-      migrationDir: 'migrations',
       resource: 'user',
       timestamp: '20260514123456',
       dryRun: true,
-      force: false,
       fields: [{ name: 'email', type: 'string', optional: false, unique: false, relation: null }]
-    });
+    }));
 
     assert.equal(result.files.length, 7);
     assert.equal(existsSync(path.join(cwd, 'src')), false);
@@ -73,7 +66,7 @@ test('dry run does not write files', async () => {
 });
 
 test('refuses to overwrite existing files without force', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
 
   try {
     const target = path.join(cwd, 'src/resources/posts/posts.module.ts');
@@ -81,17 +74,13 @@ test('refuses to overwrite existing files without force', async () => {
     await writeFile(target, 'existing', 'utf8');
 
     await assert.rejects(
-      () => generateResource({
+      () => generateResource(makeGenerateCommand({
         cwd,
-        src: 'src',
-        resourceDir: 'resources',
-        migrationDir: 'migrations',
         resource: 'post',
         timestamp: '20260514123456',
         dryRun: false,
-        force: false,
         fields: [{ name: 'title', type: 'string', optional: false, unique: false, relation: null }]
-      }),
+      })),
       /Refusing to overwrite/
     );
   } finally {

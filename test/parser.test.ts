@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseArgs, parseField } from '../src/parser.js';
+import { asGenerateCommand } from './helpers.js';
 
 test('parses a resource generation command', () => {
-  const command = parseArgs(['generate', 'resource', 'post', 'title:string', 'published?:boolean', '--dry-run']);
+  const command = asGenerateCommand(parseArgs(['generate', 'resource', 'post', 'title:string', 'published?:boolean', '--dry-run']));
 
   assert.equal(command.resource, 'post');
   assert.equal(command.dryRun, true);
@@ -14,7 +15,7 @@ test('parses a resource generation command', () => {
 });
 
 test('supports short command aliases and path options', () => {
-  const command = parseArgs([
+  const command = asGenerateCommand(parseArgs([
     'g',
     'scaffold',
     'user',
@@ -25,7 +26,7 @@ test('supports short command aliases and path options', () => {
     'features',
     '--migration-dir',
     'db/migrations'
-  ]);
+  ]));
 
   assert.equal(command.src, 'server');
   assert.equal(command.resourceDir, 'features');
@@ -41,14 +42,14 @@ test('rejects unknown field types', () => {
 });
 
 test('parses repeated --field options', () => {
-  const command = parseArgs([
+  const command = asGenerateCommand(parseArgs([
     'generate',
     'resource',
     'post',
     '--field',
     'title:string',
     '--field=published?:boolean'
-  ]);
+  ]));
 
   assert.deepEqual(command.fields, [
     { name: 'title', type: 'string', optional: false, unique: false, relation: null },
@@ -75,7 +76,7 @@ test('rejects duplicate field names', () => {
 });
 
 test('parses database and generation options', () => {
-  const command = parseArgs([
+  const command = asGenerateCommand(parseArgs([
     'generate',
     'resource',
     'post',
@@ -86,7 +87,7 @@ test('parses database and generation options', () => {
     '120',
     '--swagger',
     '--pagination'
-  ]);
+  ]));
 
   assert.equal(command.db, 'mysql');
   assert.equal(command.stringLength, 120);
@@ -117,7 +118,7 @@ test('returns list-types command', () => {
 });
 
 test('parses verbose and wire options', () => {
-  const command = parseArgs([
+  const command = asGenerateCommand(parseArgs([
     'generate',
     'resource',
     'post',
@@ -125,7 +126,7 @@ test('parses verbose and wire options', () => {
     '--verbose',
     '--wire',
     'src/app.module.ts'
-  ]);
+  ]));
 
   assert.equal(command.command, 'generate');
   assert.equal(command.verbose, true);
@@ -133,7 +134,7 @@ test('parses verbose and wire options', () => {
 });
 
 test('parses field modifiers and generation flags', () => {
-  const command = parseArgs([
+  const command = asGenerateCommand(parseArgs([
     'generate',
     'resource',
     'user',
@@ -142,7 +143,7 @@ test('parses field modifiers and generation flags', () => {
     '--id',
     'serial',
     '--soft-delete'
-  ]);
+  ]));
 
   assert.equal(command.idStrategy, 'serial');
   assert.equal(command.softDelete, true);
@@ -153,7 +154,10 @@ test('parses field modifiers and generation flags', () => {
 test('parses destroy command', () => {
   const command = parseArgs(['destroy', 'resource', 'post', '--dry-run']);
 
-  assert.equal(command.command, 'destroy');
+  if (!('command' in command) || command.command !== 'destroy') {
+    throw new Error('Expected destroy command');
+  }
+
   assert.equal(command.resource, 'post');
   assert.equal(command.dryRun, true);
 });

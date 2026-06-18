@@ -10,7 +10,7 @@ function captureIo() {
   let output = '';
   return {
     stdout: {
-      write(chunk) {
+      write(chunk: string) {
         output += chunk;
         return true;
       }
@@ -72,7 +72,7 @@ test('verbose dry-run prints generated file contents', async () => {
 });
 
 test('wires generated module into app.module.ts', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-wire-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-wire-'));
 
   try {
     const appModulePath = path.join(cwd, 'src', 'app.module.ts');

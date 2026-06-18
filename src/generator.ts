@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { buildNames } from './naming.js';
+import type { GenerateCommand, GenerateResult, PlannedFile, RenderOptions } from './models.js';
 import { resolveRenderOptions } from './types.js';
 import {
   renderController,
@@ -12,8 +13,9 @@ import {
   renderService,
   renderUpdateDto
 } from './templates.js';
+import type { ResourceNames } from './models.js';
 
-export async function generateResource(command) {
+export async function generateResource(command: GenerateCommand): Promise<GenerateResult> {
   const names = buildNames(command.resource);
   const options = resolveRenderOptions(command);
   const timestamp = command.timestamp ?? createTimestamp();
@@ -43,11 +45,16 @@ export async function generateResource(command) {
   };
 }
 
-function planFiles(command, names, timestamp, options) {
+function planFiles(
+  command: GenerateCommand,
+  names: ResourceNames,
+  timestamp: string,
+  options: RenderOptions
+): PlannedFile[] {
   const baseDir = path.join(command.src, command.resourceDir, names.kebabPlural);
   const migrationDir = path.join(command.src, command.migrationDir);
   const migrationFile = `${timestamp}-Create${names.pluralClassName}.ts`;
-  const files = [
+  const files: Array<[string, string]> = [
     [`${baseDir}/${names.kebabPlural}.module.ts`, renderModule(names, command.fields, options)],
     [`${baseDir}/${names.kebabPlural}.controller.ts`, renderController(names, options)],
     [`${baseDir}/${names.kebabPlural}.service.ts`, renderService(names, options)],
@@ -64,9 +71,9 @@ function planFiles(command, names, timestamp, options) {
   }));
 }
 
-function createTimestamp() {
+function createTimestamp(): string {
   const now = new Date();
-  const pad = (value) => String(value).padStart(2, '0');
+  const pad = (value: number) => String(value).padStart(2, '0');
   return [
     now.getUTCFullYear(),
     pad(now.getUTCMonth() + 1),

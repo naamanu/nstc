@@ -4,21 +4,22 @@ import { parseCommand, usage } from './parser.js';
 import { formatTypeList } from './types.js';
 import { VERSION } from './version.js';
 import { wireAppModule } from './wire.js';
+import type { CliIo, DestroyResult, GenerateCommand, GenerateResult, PlannedFile } from './models.js';
 
-export async function runCli(argv, io = process) {
+export async function runCli(argv: string[], io: CliIo = process as CliIo): Promise<void> {
   const command = await parseCommand(argv);
 
-  if (command.help) {
+  if ('help' in command) {
     io.stdout.write(`${usage()}\n`);
     return;
   }
 
-  if (command.version) {
+  if ('version' in command) {
     io.stdout.write(`${VERSION}\n`);
     return;
   }
 
-  if (command.listTypes) {
+  if ('listTypes' in command) {
     io.stdout.write(formatTypeList());
     return;
   }
@@ -44,7 +45,7 @@ export async function runCli(argv, io = process) {
   io.stdout.write(output);
 }
 
-function formatGenerateResult(result, command) {
+function formatGenerateResult(result: GenerateResult, command: GenerateCommand): string {
   const modulePath = [
     command.src,
     command.resourceDir,
@@ -66,7 +67,7 @@ function formatGenerateResult(result, command) {
   return `${lines.join('\n')}\n`;
 }
 
-function formatDestroyResult(result) {
+function formatDestroyResult(result: DestroyResult): string {
   const verb = result.dryRun ? 'Would remove' : 'Removed';
   return [
     `${verb} ${result.removed.length} paths for ${result.names.className}:`,
@@ -75,7 +76,7 @@ function formatDestroyResult(result) {
   ].join('\n');
 }
 
-function formatVerbose(plannedFiles) {
+function formatVerbose(plannedFiles: PlannedFile[]): string {
   const sections = plannedFiles.map((file) => [
     `--- ${file.relativePath} ---`,
     file.content.trimEnd(),
@@ -85,7 +86,7 @@ function formatVerbose(plannedFiles) {
   return `${sections.join('\n')}\n`;
 }
 
-function formatWireResult(result) {
+function formatWireResult(result: Awaited<ReturnType<typeof wireAppModule>>): string {
   if (!result.wired) {
     return `Module wiring skipped for ${result.modulePath}: ${result.reason}.\n`;
   }

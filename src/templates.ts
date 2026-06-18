@@ -12,8 +12,9 @@ import {
   resolveRelationTarget,
   validatorsFor
 } from './types.js';
+import type { FieldDefinition, RenderOptions, ResourceNames } from './models.js';
 
-function renderOptions(options) {
+function renderOptions(options: Partial<RenderOptions> = {}): RenderOptions {
   return {
     db: options.db ?? 'postgres',
     stringLength: options.stringLength ?? 255,
@@ -25,15 +26,15 @@ function renderOptions(options) {
   };
 }
 
-function idPipe(config) {
+function idPipe(config: RenderOptions): string {
   return config.idStrategy === 'serial' ? 'ParseIntPipe' : 'ParseUUIDPipe';
 }
 
-function idType(config) {
+function idType(config: RenderOptions): string {
   return config.idStrategy === 'serial' ? 'number' : 'string';
 }
 
-export function renderModule(names, fields = [], options = {}) {
+export function renderModule(names: ResourceNames, fields: FieldDefinition[] = [], options: Partial<RenderOptions> = {}): string {
   const config = renderOptions(options);
   const related = collectRelatedEntities(fields);
   const entities = [names.className, ...related.map((target) => target.className)];
@@ -57,7 +58,7 @@ export class ${names.className}Module {}
 `;
 }
 
-export function renderController(names, options = {}) {
+export function renderController(names: ResourceNames, options: Partial<RenderOptions> = {}): string {
   const config = renderOptions(options);
   const parsePipe = idPipe(config);
   const paramType = idType(config);
@@ -113,7 +114,7 @@ ${findAllBody}
 `;
 }
 
-export function renderService(names, options = {}) {
+export function renderService(names: ResourceNames, options: Partial<RenderOptions> = {}): string {
   const config = renderOptions(options);
   const paramType = idType(config);
   const removeMethod = config.softDelete
@@ -171,10 +172,10 @@ ${removeMethod}
 `;
 }
 
-export function renderEntity(names, fields, options = {}) {
+export function renderEntity(names: ResourceNames, fields: FieldDefinition[], options: Partial<RenderOptions> = {}): string {
   const config = renderOptions(options);
   const typeormImports = new Set(['Column', 'CreateDateColumn', 'Entity', 'PrimaryGeneratedColumn', 'UpdateDateColumn']);
-  const entityImports = new Map();
+  const entityImports = new Map<string, { className: string; importPath: string }>();
 
   if (config.softDelete) {
     typeormImports.add('DeleteDateColumn');
@@ -214,7 +215,7 @@ ${fieldLines}
 `;
 }
 
-export function renderCreateDto(names, fields, options = {}) {
+export function renderCreateDto(names: ResourceNames, fields: FieldDefinition[], options: Partial<RenderOptions> = {}): string {
   const config = renderOptions(options);
   const validatorNames = collectValidatorImports(fields);
   const swaggerNames = config.swagger ? ['ApiProperty', 'ApiPropertyOptional'] : [];
@@ -230,7 +231,7 @@ ${fieldLines}
 `;
 }
 
-export function renderUpdateDto(names, options = {}) {
+export function renderUpdateDto(names: ResourceNames, options: Partial<RenderOptions> = {}): string {
   const config = renderOptions(options);
   const partialSource = config.swagger ? '@nestjs/swagger' : '@nestjs/mapped-types';
 
@@ -241,7 +242,12 @@ export class Update${names.className}Dto extends PartialType(Create${names.class
 `;
 }
 
-export function renderMigration(names, fields, timestamp, options = {}) {
+export function renderMigration(
+  names: ResourceNames,
+  fields: FieldDefinition[],
+  timestamp: string,
+  options: Partial<RenderOptions> = {}
+): string {
   const config = renderOptions(options);
   const className = `Create${names.pluralClassName}${timestamp}`;
   const columnLines = fields.map((field) => formatMigrationColumn(migrationColumnSpec(field, config))).join(',\n');
@@ -279,7 +285,12 @@ ${updatedAtColumn}${deletedAtColumn},
 `;
 }
 
-function renderEntityField(names, field, config, entityImports) {
+function renderEntityField(
+  names: ResourceNames,
+  field: FieldDefinition,
+  config: RenderOptions,
+  entityImports: Map<string, { className: string; importPath: string }>
+): string[] {
   const meta = FIELD_TYPE_DEFS[field.type];
   const optional = field.optional ? '?' : '';
   const lines = [`  @Column(${entityColumnOptions(field, config)})
@@ -300,16 +311,16 @@ function renderEntityField(names, field, config, entityImports) {
   return lines;
 }
 
-function collectValidatorImports(fields) {
-  const names = new Set();
+function collectValidatorImports(fields: FieldDefinition[]): string[] {
+  const names = new Set<string>();
   for (const field of fields) {
     for (const validator of validatorsFor(field)) names.add(validator);
   }
   return [...names].sort();
 }
 
-function renderDtoField(field, config) {
-  const decorators = [];
+function renderDtoField(field: FieldDefinition, config: RenderOptions): string {
+  const decorators: string[] = [];
   if (config.swagger) {
     decorators.push(field.optional ? 'ApiPropertyOptional' : 'ApiProperty');
   }

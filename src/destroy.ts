@@ -2,8 +2,9 @@ import { readdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { buildNames } from './naming.js';
+import type { DestroyCommand, DestroyResult } from './models.js';
 
-export async function destroyResource(command) {
+export async function destroyResource(command: DestroyCommand): Promise<DestroyResult> {
   const names = buildNames(command.resource);
   const targets = await collectDestroyTargets(command, names);
 
@@ -24,8 +25,8 @@ export async function destroyResource(command) {
   };
 }
 
-async function collectDestroyTargets(command, names) {
-  const targets = [];
+async function collectDestroyTargets(command: DestroyCommand, names: ReturnType<typeof buildNames>) {
+  const targets: Array<{ relativePath: string; absolutePath: string }> = [];
   const resourceDir = path.join(command.cwd, command.src, command.resourceDir, names.kebabPlural);
 
   if (existsSync(resourceDir)) {

@@ -5,12 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { loadConfig } from '../src/config.js';
 import { parseCommand } from '../src/parser.js';
+import { asGenerateCommand } from './helpers.js';
 
-test('loads defaults from .nest-scaffoldrc.json', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-config-'));
+test('loads defaults from .nstcrc.json', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-config-'));
 
   try {
-    await writeFile(path.join(cwd, '.nest-scaffoldrc.json'), JSON.stringify({
+    await writeFile(path.join(cwd, '.nstcrc.json'), JSON.stringify({
       resourceDir: 'features',
       db: 'mysql',
       stringLength: 120
@@ -22,14 +23,14 @@ test('loads defaults from .nest-scaffoldrc.json', async () => {
       stringLength: 120
     });
 
-    const command = await parseCommand([
+    const command = asGenerateCommand(await parseCommand([
       'generate',
       'resource',
       'post',
       'title:string',
       '--cwd',
       cwd
-    ]);
+    ]));
 
     assert.equal(command.resourceDir, 'features');
     assert.equal(command.db, 'mysql');
@@ -40,12 +41,12 @@ test('loads defaults from .nest-scaffoldrc.json', async () => {
 });
 
 test('cli flags override config file defaults', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nest-scaffolder-config-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-config-'));
 
   try {
-    await writeFile(path.join(cwd, '.nest-scaffoldrc.json'), JSON.stringify({ db: 'mysql' }), 'utf8');
+    await writeFile(path.join(cwd, '.nstcrc.json'), JSON.stringify({ db: 'mysql' }), 'utf8');
 
-    const command = await parseCommand([
+    const command = asGenerateCommand(await parseCommand([
       'generate',
       'resource',
       'post',
@@ -54,7 +55,7 @@ test('cli flags override config file defaults', async () => {
       cwd,
       '--db',
       'sqlite'
-    ]);
+    ]));
 
     assert.equal(command.db, 'sqlite');
   } finally {
