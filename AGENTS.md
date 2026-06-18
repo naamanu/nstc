@@ -107,7 +107,7 @@ Config file: `.nstcrc.json` or `package.json` → `"nstc"`. CLI flags override c
 
 ### Tests
 
-- `node --test dist/test/**/*.test.js` after `npm run build` — test helpers in `test/helpers.ts`.
+- `node --test dist/test/*.test.js` after `npm run build` — test helpers in `test/helpers.ts`.
 - Generator tests use temp dirs via `mkdtemp`. Always `rm` in `finally`.
 - When adding a flag or field modifier: add parser test + template or integration test.
 - CI runs on Node 20 and 22 (`.github/workflows/ci.yml`).
@@ -151,4 +151,4 @@ For most tasks, read these in order:
 2. `src/models.ts` + `src/types.ts` — type registry and render options
 3. `src/templates.ts` — generated output shape
 4. `src/generator.ts` — file planning and writes
-5. `README.md` — user-facing docs (keep in sync when adding flags)
+5. `README.md` and `docs/` — user-facing docs (keep in sync when adding flags)
