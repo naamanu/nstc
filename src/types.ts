@@ -1,8 +1,19 @@
 import { buildNames } from './naming.js';
+import type {
+  DbDialect,
+  FieldDefinition,
+  FieldType,
+  GenerateCommand,
+  IdStrategy,
+  MigrationColumnSpec,
+  RenderOptions,
+  ResourceNames,
+  ScaffoldConfig
+} from './models.js';
 
-export const SUPPORTED_ID_STRATEGIES = ['uuid', 'serial'];
+export const SUPPORTED_ID_STRATEGIES: IdStrategy[] = ['uuid', 'serial'];
 
-export const TYPE_ALIASES = new Map([
+export const TYPE_ALIASES = new Map<string, FieldType>([
   ['string', 'string'],
   ['text', 'text'],
   ['number', 'number'],
@@ -17,9 +28,18 @@ export const TYPE_ALIASES = new Map([
   ['json', 'json']
 ]);
 
-export const SUPPORTED_DBS = ['postgres', 'mysql', 'sqlite'];
+export const SUPPORTED_DBS: DbDialect[] = ['postgres', 'mysql', 'sqlite'];
 
-export const FIELD_TYPE_DEFS = {
+interface FieldTypeDef {
+  ts: string;
+  validators: string[];
+  requiredExtra?: string[];
+  columnType: Record<DbDialect, string>;
+  hasLength?: boolean;
+  lengthWhenSized?: number;
+}
+
+export const FIELD_TYPE_DEFS: Record<FieldType, FieldTypeDef> = {
   string: {
     ts: 'string',
     validators: ['IsString'],
@@ -77,7 +97,23 @@ export const FIELD_TYPE_DEFS = {
   }
 };
 
-export const DB_CONFIG = {
+interface IdColumnSpec {
+  type: string;
+  isPrimary: boolean;
+  length?: number;
+  isGenerated?: boolean;
+  generationStrategy?: string;
+  default?: string;
+}
+
+interface DbConfigEntry {
+  idColumn: IdColumnSpec;
+  serialIdColumn: IdColumnSpec;
+  timestampType: string;
+  timestampDefault: string;
+}
+
+export const DB_CONFIG: Record<DbDialect, DbConfigEntry> = {
   postgres: {
     idColumn: {
       type: 'uuid',
@@ -127,7 +163,7 @@ export const DB_CONFIG = {
   }
 };
 
-export function resolveRenderOptions(command) {
+export function resolveRenderOptions(command: ScaffoldConfig | GenerateCommand): RenderOptions {
   return {
     db: command.db ?? 'postgres',
     stringLength: command.stringLength ?? 255,
@@ -139,11 +175,11 @@ export function resolveRenderOptions(command) {
   };
 }
 
-export function resolveRelationTarget(className) {
+export function resolveRelationTarget(className: string): ResourceNames {
   return buildNames(className);
 }
 
-export function relationEntityImport(currentNames, targetNames, resourceDir) {
+export function relationEntityImport(currentNames: ResourceNames, targetNames: ResourceNames, resourceDir: string): string {
   const from = `${resourceDir}/${currentNames.kebabPlural}/entities`;
   const to = `${resourceDir}/${targetNames.kebabPlural}/entities/${targetNames.kebab}.entity`;
   const segments = to.split('/').filter(Boolean);
@@ -161,25 +197,25 @@ export function relationEntityImport(currentNames, targetNames, resourceDir) {
   return relative.startsWith('.') ? relative : `./${relative}`;
 }
 
-export function relationPropertyName(field, targetNames) {
+export function relationPropertyName(field: FieldDefinition, targetNames: ResourceNames): string {
   if (field.name.endsWith('Id') && field.name.length > 2) {
     return field.name.slice(0, -2);
   }
   return targetNames.camel;
 }
 
-export function columnTypeFor(field, db) {
+export function columnTypeFor(field: FieldDefinition, db: DbDialect): string {
   return FIELD_TYPE_DEFS[field.type].columnType[db];
 }
 
-export function validatorsFor(field) {
+export function validatorsFor(field: FieldDefinition): string[] {
   const def = FIELD_TYPE_DEFS[field.type];
-  const names = field.optional ? def.validators : [...(def.requiredExtra ?? []), ...def.validators];
+  const names = field.optional ? [...def.validators] : [...(def.requiredExtra ?? []), ...def.validators];
   if (field.optional) names.unshift('IsOptional');
   return names;
 }
 
-export function entityColumnOptions(field, options) {
+export function entityColumnOptions(field: FieldDefinition, options: RenderOptions): string {
   const def = FIELD_TYPE_DEFS[field.type];
   const type = columnTypeFor(field, options.db);
   const parts = [`type: '${type}'`];
@@ -200,9 +236,9 @@ export function entityColumnOptions(field, options) {
   return `{ ${parts.join(', ')} }`;
 }
 
-export function migrationColumnSpec(field, options) {
+export function migrationColumnSpec(field: FieldDefinition, options: RenderOptions): MigrationColumnSpec {
   const def = FIELD_TYPE_DEFS[field.type];
-  const spec = {
+  const spec: MigrationColumnSpec = {
     name: field.name,
     type: columnTypeFor(field, options.db)
   };
@@ -222,7 +258,7 @@ export function migrationColumnSpec(field, options) {
   return spec;
 }
 
-export function formatMigrationColumn(spec) {
+export function formatMigrationColumn(spec: MigrationColumnSpec): string {
   const lines = [`            name: '${spec.name}'`, `            type: '${spec.type}'`];
 
   if (spec.length !== undefined) {
@@ -240,7 +276,7 @@ export function formatMigrationColumn(spec) {
   return `          {\n${lines.join(',\n')},\n          }`;
 }
 
-export function formatMigrationIdColumn(db, idStrategy = 'uuid') {
+export function formatMigrationIdColumn(db: DbDialect, idStrategy: IdStrategy = 'uuid'): string {
   const spec = idStrategy === 'serial' ? DB_CONFIG[db].serialIdColumn : DB_CONFIG[db].idColumn;
   const lines = [
     "            name: 'id'",
@@ -267,7 +303,11 @@ export function formatMigrationIdColumn(db, idStrategy = 'uuid') {
   return `          {\n${lines.join(',\n')},\n          }`;
 }
 
-export function formatMigrationTimestampColumn(name, db, { nullable = false } = {}) {
+export function formatMigrationTimestampColumn(
+  name: string,
+  db: DbDialect,
+  { nullable = false }: { nullable?: boolean } = {}
+): string {
   const config = DB_CONFIG[db];
   const lines = [
     `            name: '${name}'`,
@@ -283,11 +323,11 @@ export function formatMigrationTimestampColumn(name, db, { nullable = false } = 
   return `          {\n${lines.join(',\n')},\n          }`;
 }
 
-export function formatMigrationForeignKeys(fields, options) {
+export function formatMigrationForeignKeys(fields: FieldDefinition[], _options: RenderOptions): string {
   const keys = fields
     .filter((field) => field.relation?.kind === 'belongsTo')
     .map((field) => {
-      const targetNames = resolveRelationTarget(field.relation.target);
+      const targetNames = resolveRelationTarget(field.relation!.target);
       return `          new TableForeignKey({
             columnNames: ['${field.name}'],
             referencedTableName: '${targetNames.tableName}',
@@ -306,8 +346,8 @@ ${keys.join(',\n')},
         ]`;
 }
 
-export function collectRelatedEntities(fields) {
-  const related = new Map();
+export function collectRelatedEntities(fields: FieldDefinition[]): ResourceNames[] {
+  const related = new Map<string, ResourceNames>();
   for (const field of fields) {
     if (field.relation?.kind === 'belongsTo') {
       const targetNames = resolveRelationTarget(field.relation.target);
@@ -317,7 +357,7 @@ export function collectRelatedEntities(fields) {
   return [...related.values()];
 }
 
-export function formatTypeList() {
+export function formatTypeList(): string {
   const aliases = [...TYPE_ALIASES.keys()].sort();
   return [
     'Supported field types:',

@@ -1,9 +1,18 @@
 import { loadConfig } from './config.js';
+import type {
+  DbDialect,
+  DestroyCommand,
+  FieldDefinition,
+  GenerateCommand,
+  IdStrategy,
+  ParsedCommand,
+  ScaffoldConfig
+} from './models.js';
 import { TYPE_ALIASES, SUPPORTED_DBS, SUPPORTED_ID_STRATEGIES } from './types.js';
 
 const RESERVED_FIELD_NAMES = new Set(['id', 'createdAt', 'updatedAt', 'deletedAt']);
 
-const DEFAULT_OPTIONS = {
+const DEFAULT_OPTIONS: ScaffoldConfig = {
   cwd: process.cwd(),
   src: 'src',
   resourceDir: 'resources',
@@ -20,7 +29,7 @@ const DEFAULT_OPTIONS = {
   wire: null
 };
 
-export function parseArgs(argv, config = {}) {
+export function parseArgs(argv: string[], config: Partial<ScaffoldConfig> = {}): ParsedCommand {
   if (argv.length === 0 || argv.includes('--help') || argv.includes('-h')) {
     return { help: true };
   }
@@ -36,21 +45,21 @@ export function parseArgs(argv, config = {}) {
   const tokens = [...argv];
   const action = tokens.shift();
 
-  if (['generate', 'g'].includes(action)) {
+  if (action && ['generate', 'g'].includes(action)) {
     return parseGenerateCommand(tokens, config);
   }
 
-  if (['destroy', 'd'].includes(action)) {
+  if (action && ['destroy', 'd'].includes(action)) {
     return parseDestroyCommand(tokens, config);
   }
 
   throw new Error(`Unsupported command.\n\n${usage()}`);
 }
 
-function parseGenerateCommand(tokens, config) {
+function parseGenerateCommand(tokens: string[], config: Partial<ScaffoldConfig>): GenerateCommand {
   const subject = tokens.shift();
 
-  if (!['resource', 'scaffold'].includes(subject)) {
+  if (!subject || !['resource', 'scaffold'].includes(subject)) {
     throw new Error(`Unsupported command.\n\n${usage()}`);
   }
 
@@ -77,10 +86,10 @@ function parseGenerateCommand(tokens, config) {
   };
 }
 
-function parseDestroyCommand(tokens, config) {
+function parseDestroyCommand(tokens: string[], config: Partial<ScaffoldConfig>): DestroyCommand {
   const subject = tokens.shift();
 
-  if (!['resource', 'scaffold'].includes(subject)) {
+  if (!subject || !['resource', 'scaffold'].includes(subject)) {
     throw new Error(`Unsupported command.\n\n${usage()}`);
   }
 
@@ -99,12 +108,12 @@ function parseDestroyCommand(tokens, config) {
   };
 }
 
-function parseSharedOptions(tokens, config) {
-  const options = {
+function parseSharedOptions(tokens: string[], config: Partial<ScaffoldConfig>) {
+  const options: ScaffoldConfig = {
     ...DEFAULT_OPTIONS,
     ...config
   };
-  const fieldTokens = [];
+  const fieldTokens: string[] = [];
 
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
@@ -151,13 +160,13 @@ function parseSharedOptions(tokens, config) {
   return { options, fieldTokens };
 }
 
-export async function parseCommand(argv) {
+export async function parseCommand(argv: string[]): Promise<ParsedCommand> {
   const cwd = extractCwd(argv) ?? process.cwd();
   const config = loadConfig(cwd);
   return parseArgs(argv, config);
 }
 
-export function parseField(token) {
+export function parseField(token: string): FieldDefinition {
   const segments = token.split(':');
   if (segments.length < 2) {
     throw new Error(`Invalid field "${token}". Use name:type[:modifier...].`);
@@ -174,7 +183,7 @@ export function parseField(token) {
     throw new Error(`Unknown type "${segments[1]}" for field "${name}".`);
   }
 
-  const field = {
+  const field: FieldDefinition = {
     name,
     type,
     optional: Boolean(optionalMark),
@@ -205,7 +214,7 @@ export function parseField(token) {
   return field;
 }
 
-export function usage() {
+export function usage(): string {
   return [
     'Usage:',
     '  nest-scaffold generate resource <name> <field:type...> [options]',
@@ -244,17 +253,17 @@ export function usage() {
   ].join('\n');
 }
 
-function extractCwd(argv) {
+function extractCwd(argv: string[]): string | null {
   for (let index = 0; index < argv.length; index += 1) {
     if (argv[index] === '--cwd') {
-      return argv[index + 1];
+      return argv[index + 1] ?? null;
     }
   }
   return null;
 }
 
-function validateFields(fields) {
-  const seen = new Set();
+function validateFields(fields: FieldDefinition[]): void {
+  const seen = new Set<string>();
 
   for (const field of fields) {
     if (RESERVED_FIELD_NAMES.has(field.name)) {
@@ -267,7 +276,7 @@ function validateFields(fields) {
   }
 }
 
-function validateConfigOptions(options) {
+function validateConfigOptions(options: ScaffoldConfig): void {
   if (!SUPPORTED_DBS.includes(options.db)) {
     throw new Error(`Unsupported database "${options.db}". Use one of: ${SUPPORTED_DBS.join(', ')}.`);
   }
@@ -281,7 +290,7 @@ function validateConfigOptions(options) {
   }
 }
 
-function readOptionValue(tokens, index, optionName) {
+function readOptionValue(tokens: string[], index: number, optionName: string): string {
   const value = tokens[index];
   if (!value || value.startsWith('--')) {
     throw new Error(`Missing value for ${optionName}.`);
@@ -289,23 +298,23 @@ function readOptionValue(tokens, index, optionName) {
   return value;
 }
 
-function readDbOption(tokens, index) {
+function readDbOption(tokens: string[], index: number): DbDialect {
   const value = readOptionValue(tokens, index, '--db').toLowerCase();
-  if (!SUPPORTED_DBS.includes(value)) {
+  if (!SUPPORTED_DBS.includes(value as DbDialect)) {
     throw new Error(`Unsupported database "${value}". Use one of: ${SUPPORTED_DBS.join(', ')}.`);
   }
-  return value;
+  return value as DbDialect;
 }
 
-function readIdStrategyOption(tokens, index) {
+function readIdStrategyOption(tokens: string[], index: number): IdStrategy {
   const value = readOptionValue(tokens, index, '--id').toLowerCase();
-  if (!SUPPORTED_ID_STRATEGIES.includes(value)) {
+  if (!SUPPORTED_ID_STRATEGIES.includes(value as IdStrategy)) {
     throw new Error(`Unsupported id strategy "${value}". Use one of: ${SUPPORTED_ID_STRATEGIES.join(', ')}.`);
   }
-  return value;
+  return value as IdStrategy;
 }
 
-function readStringLengthOption(tokens, index) {
+function readStringLengthOption(tokens: string[], index: number): number {
   const value = readOptionValue(tokens, index, '--string-length');
   const length = Number.parseInt(value, 10);
   if (!Number.isInteger(length) || length <= 0) {

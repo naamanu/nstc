@@ -9,11 +9,12 @@ import {
   renderService,
   renderUpdateDto
 } from '../src/templates.js';
+import { makeField } from './helpers.js';
 
 const names = buildNames('post');
 const fields = [
-  { name: 'title', type: 'string', optional: false },
-  { name: 'published', type: 'boolean', optional: true }
+  makeField({ name: 'title', type: 'string' }),
+  makeField({ name: 'published', type: 'boolean', optional: true })
 ];
 
 test('entity columns include default string length', () => {
@@ -33,7 +34,7 @@ test('controller validates uuid route params', () => {
 });
 
 test('mysql migration uses dialect-specific column types', () => {
-  const migration = renderMigration(names, [{ name: 'meta', type: 'json', optional: false }], '20260514123456', {
+  const migration = renderMigration(names, [makeField({ name: 'meta', type: 'json' })], '20260514123456', {
     db: 'mysql'
   });
 
@@ -43,7 +44,7 @@ test('mysql migration uses dialect-specific column types', () => {
 });
 
 test('sqlite migration uses text for json columns', () => {
-  const migration = renderMigration(names, [{ name: 'meta', type: 'json', optional: false }], '20260514123456', {
+  const migration = renderMigration(names, [makeField({ name: 'meta', type: 'json' })], '20260514123456', {
     db: 'sqlite'
   });
 

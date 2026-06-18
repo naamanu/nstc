@@ -10,7 +10,7 @@ function captureIo() {
   let output = '';
   return {
     stdout: {
-      write(chunk) {
+      write(chunk: string) {
         output += chunk;
         return true;
       }

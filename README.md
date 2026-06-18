@@ -13,7 +13,16 @@ The command creates a NestJS module, controller, service, DTOs, TypeORM entity, 
 From this package directory:
 
 ```bash
+npm install
+npm run build
 npm link
+```
+
+During development:
+
+```bash
+npm test
+npm run build && node ./dist/bin/nest-scaffold.js generate resource post title:string --dry-run
 ```
 
 From a NestJS app:
