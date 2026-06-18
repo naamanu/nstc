@@ -10,7 +10,7 @@ import {
   relationEntityImport,
   relationPropertyName,
   resolveRelationTarget,
-  validatorsFor
+  validatorsFor,
 } from './types.js';
 import type { FieldDefinition, RenderOptions, ResourceNames } from './models.js';
 
@@ -22,7 +22,7 @@ function renderOptions(options: Partial<RenderOptions> = {}): RenderOptions {
     pagination: options.pagination ?? false,
     idStrategy: options.idStrategy ?? 'uuid',
     softDelete: options.softDelete ?? false,
-    resourceDir: options.resourceDir ?? 'resources'
+    resourceDir: options.resourceDir ?? 'resources',
   };
 }
 
@@ -34,12 +34,19 @@ function idType(config: RenderOptions): string {
   return config.idStrategy === 'serial' ? 'number' : 'string';
 }
 
-export function renderModule(names: ResourceNames, fields: FieldDefinition[] = [], options: Partial<RenderOptions> = {}): string {
+export function renderModule(
+  names: ResourceNames,
+  fields: FieldDefinition[] = [],
+  options: Partial<RenderOptions> = {},
+): string {
   const config = renderOptions(options);
   const related = collectRelatedEntities(fields);
   const entities = [names.className, ...related.map((target) => target.className)];
   const relatedImports = related
-    .map((target) => `import { ${target.className} } from '${relationEntityImport(names, target, config.resourceDir)}';`)
+    .map(
+      (target) =>
+        `import { ${target.className} } from '${relationEntityImport(names, target, config.resourceDir)}';`,
+    )
     .join('\n');
 
   return `import { Module } from '@nestjs/common';
@@ -58,11 +65,23 @@ export class ${names.className}Module {}
 `;
 }
 
-export function renderController(names: ResourceNames, options: Partial<RenderOptions> = {}): string {
+export function renderController(
+  names: ResourceNames,
+  options: Partial<RenderOptions> = {},
+): string {
   const config = renderOptions(options);
   const parsePipe = idPipe(config);
   const paramType = idType(config);
-  const commonImports = ['Body', 'Controller', 'Delete', 'Get', 'Param', 'Patch', 'Post', parsePipe];
+  const commonImports = [
+    'Body',
+    'Controller',
+    'Delete',
+    'Get',
+    'Param',
+    'Patch',
+    'Post',
+    parsePipe,
+  ];
   const queryImport = config.pagination ? ', Query' : '';
   const swaggerImports = config.swagger ? "\nimport { ApiTags } from '@nestjs/swagger';" : '';
   const swaggerDecorator = config.swagger ? `\n@ApiTags('${names.route}')` : '';
@@ -172,9 +191,19 @@ ${removeMethod}
 `;
 }
 
-export function renderEntity(names: ResourceNames, fields: FieldDefinition[], options: Partial<RenderOptions> = {}): string {
+export function renderEntity(
+  names: ResourceNames,
+  fields: FieldDefinition[],
+  options: Partial<RenderOptions> = {},
+): string {
   const config = renderOptions(options);
-  const typeormImports = new Set(['Column', 'CreateDateColumn', 'Entity', 'PrimaryGeneratedColumn', 'UpdateDateColumn']);
+  const typeormImports = new Set([
+    'Column',
+    'CreateDateColumn',
+    'Entity',
+    'PrimaryGeneratedColumn',
+    'UpdateDateColumn',
+  ]);
   const entityImports = new Map<string, { className: string; importPath: string }>();
 
   if (config.softDelete) {
@@ -186,13 +215,14 @@ export function renderEntity(names: ResourceNames, fields: FieldDefinition[], op
     typeormImports.add('JoinColumn');
   }
 
-  const fieldLines = fields.flatMap((field) => renderEntityField(names, field, config, entityImports)).join('\n\n');
-  const primaryKey = config.idStrategy === 'serial'
-    ? '@PrimaryGeneratedColumn()\n  id: number;'
-    : "@PrimaryGeneratedColumn('uuid')\n  id: string;";
-  const softDeleteLine = config.softDelete
-    ? '\n\n  @DeleteDateColumn()\n  deletedAt?: Date;'
-    : '';
+  const fieldLines = fields
+    .flatMap((field) => renderEntityField(names, field, config, entityImports))
+    .join('\n\n');
+  const primaryKey =
+    config.idStrategy === 'serial'
+      ? '@PrimaryGeneratedColumn()\n  id: number;'
+      : "@PrimaryGeneratedColumn('uuid')\n  id: string;";
+  const softDeleteLine = config.softDelete ? '\n\n  @DeleteDateColumn()\n  deletedAt?: Date;' : '';
   const relationImports = [...entityImports.values()]
     .sort((left, right) => left.className.localeCompare(right.className))
     .map((target) => `import { ${target.className} } from '${target.importPath}';`)
@@ -215,14 +245,22 @@ ${fieldLines}
 `;
 }
 
-export function renderCreateDto(names: ResourceNames, fields: FieldDefinition[], options: Partial<RenderOptions> = {}): string {
+export function renderCreateDto(
+  names: ResourceNames,
+  fields: FieldDefinition[],
+  options: Partial<RenderOptions> = {},
+): string {
   const config = renderOptions(options);
   const validatorNames = collectValidatorImports(fields);
   const swaggerNames = config.swagger ? ['ApiProperty', 'ApiPropertyOptional'] : [];
   const imports = [
     config.swagger ? `import { ${swaggerNames.join(', ')} } from '@nestjs/swagger';` : null,
-    validatorNames.length > 0 ? `import { ${validatorNames.join(', ')} } from 'class-validator';` : null
-  ].filter(Boolean).join('\n');
+    validatorNames.length > 0
+      ? `import { ${validatorNames.join(', ')} } from 'class-validator';`
+      : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
   const fieldLines = fields.map((field) => renderDtoField(field, config)).join('\n\n');
 
   return `${imports ? `${imports}\n\n` : ''}export class Create${names.className}Dto {
@@ -231,7 +269,10 @@ ${fieldLines}
 `;
 }
 
-export function renderUpdateDto(names: ResourceNames, options: Partial<RenderOptions> = {}): string {
+export function renderUpdateDto(
+  names: ResourceNames,
+  options: Partial<RenderOptions> = {},
+): string {
   const config = renderOptions(options);
   const partialSource = config.swagger ? '@nestjs/swagger' : '@nestjs/mapped-types';
 
@@ -246,11 +287,13 @@ export function renderMigration(
   names: ResourceNames,
   fields: FieldDefinition[],
   timestamp: string,
-  options: Partial<RenderOptions> = {}
+  options: Partial<RenderOptions> = {},
 ): string {
   const config = renderOptions(options);
   const className = `Create${names.pluralClassName}${timestamp}`;
-  const columnLines = fields.map((field) => formatMigrationColumn(migrationColumnSpec(field, config))).join(',\n');
+  const columnLines = fields
+    .map((field) => formatMigrationColumn(migrationColumnSpec(field, config)))
+    .join(',\n');
   const idColumn = formatMigrationIdColumn(config.db, config.idStrategy);
   const createdAtColumn = formatMigrationTimestampColumn('createdAt', config.db);
   const updatedAtColumn = formatMigrationTimestampColumn('updatedAt', config.db);
@@ -289,19 +332,21 @@ function renderEntityField(
   names: ResourceNames,
   field: FieldDefinition,
   config: RenderOptions,
-  entityImports: Map<string, { className: string; importPath: string }>
+  entityImports: Map<string, { className: string; importPath: string }>,
 ): string[] {
   const meta = FIELD_TYPE_DEFS[field.type];
   const optional = field.optional ? '?' : '';
-  const lines = [`  @Column(${entityColumnOptions(field, config)})
-  ${field.name}${optional}: ${meta.ts};`];
+  const lines = [
+    `  @Column(${entityColumnOptions(field, config)})
+  ${field.name}${optional}: ${meta.ts};`,
+  ];
 
   if (field.relation?.kind === 'belongsTo') {
     const targetNames = resolveRelationTarget(field.relation.target);
     const propertyName = relationPropertyName(field, targetNames);
     entityImports.set(targetNames.className, {
       className: targetNames.className,
-      importPath: relationEntityImport(names, targetNames, config.resourceDir)
+      importPath: relationEntityImport(names, targetNames, config.resourceDir),
     });
     lines.push(`  @ManyToOne(() => ${targetNames.className}, { onDelete: 'CASCADE' })
   @JoinColumn({ name: '${field.name}' })

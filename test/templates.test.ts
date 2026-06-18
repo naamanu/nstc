@@ -7,14 +7,14 @@ import {
   renderEntity,
   renderMigration,
   renderService,
-  renderUpdateDto
+  renderUpdateDto,
 } from '../src/templates.js';
 import { makeField } from './helpers.js';
 
 const names = buildNames('post');
 const fields = [
   makeField({ name: 'title', type: 'string' }),
-  makeField({ name: 'published', type: 'boolean', optional: true })
+  makeField({ name: 'published', type: 'boolean', optional: true }),
 ];
 
 test('entity columns include default string length', () => {
@@ -34,9 +34,14 @@ test('controller validates uuid route params', () => {
 });
 
 test('mysql migration uses dialect-specific column types', () => {
-  const migration = renderMigration(names, [makeField({ name: 'meta', type: 'json' })], '20260514123456', {
-    db: 'mysql'
-  });
+  const migration = renderMigration(
+    names,
+    [makeField({ name: 'meta', type: 'json' })],
+    '20260514123456',
+    {
+      db: 'mysql',
+    },
+  );
 
   assert.match(migration, /type: 'json'/);
   assert.match(migration, /default: '\(UUID\(\)\)'/);
@@ -44,9 +49,14 @@ test('mysql migration uses dialect-specific column types', () => {
 });
 
 test('sqlite migration uses text for json columns', () => {
-  const migration = renderMigration(names, [makeField({ name: 'meta', type: 'json' })], '20260514123456', {
-    db: 'sqlite'
-  });
+  const migration = renderMigration(
+    names,
+    [makeField({ name: 'meta', type: 'json' })],
+    '20260514123456',
+    {
+      db: 'sqlite',
+    },
+  );
 
   assert.match(migration, /name: 'meta',\n            type: 'text'/);
   assert.match(migration, /default: 'datetime\('now'\)'/);

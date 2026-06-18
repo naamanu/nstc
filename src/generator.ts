@@ -11,7 +11,7 @@ import {
   renderMigration,
   renderModule,
   renderService,
-  renderUpdateDto
+  renderUpdateDto,
 } from './templates.js';
 import type { ResourceNames } from './models.js';
 
@@ -23,11 +23,13 @@ export async function generateResource(command: GenerateCommand): Promise<Genera
   const existing = files.filter((file) => existsSync(file.absolutePath));
 
   if (existing.length > 0 && !command.force) {
-    throw new Error([
-      'Refusing to overwrite existing files:',
-      ...existing.map((file) => `  - ${file.relativePath}`),
-      'Re-run with --force to overwrite them.'
-    ].join('\n'));
+    throw new Error(
+      [
+        'Refusing to overwrite existing files:',
+        ...existing.map((file) => `  - ${file.relativePath}`),
+        'Re-run with --force to overwrite them.',
+      ].join('\n'),
+    );
   }
 
   if (!command.dryRun) {
@@ -41,7 +43,7 @@ export async function generateResource(command: GenerateCommand): Promise<Genera
     names,
     dryRun: command.dryRun,
     files: files.map((file) => file.relativePath),
-    plannedFiles: files
+    plannedFiles: files,
   };
 }
 
@@ -49,7 +51,7 @@ function planFiles(
   command: GenerateCommand,
   names: ResourceNames,
   timestamp: string,
-  options: RenderOptions
+  options: RenderOptions,
 ): PlannedFile[] {
   const baseDir = path.join(command.src, command.resourceDir, names.kebabPlural);
   const migrationDir = path.join(command.src, command.migrationDir);
@@ -59,15 +61,21 @@ function planFiles(
     [`${baseDir}/${names.kebabPlural}.controller.ts`, renderController(names, options)],
     [`${baseDir}/${names.kebabPlural}.service.ts`, renderService(names, options)],
     [`${baseDir}/entities/${names.kebab}.entity.ts`, renderEntity(names, command.fields, options)],
-    [`${baseDir}/dto/create-${names.kebab}.dto.ts`, renderCreateDto(names, command.fields, options)],
+    [
+      `${baseDir}/dto/create-${names.kebab}.dto.ts`,
+      renderCreateDto(names, command.fields, options),
+    ],
     [`${baseDir}/dto/update-${names.kebab}.dto.ts`, renderUpdateDto(names, options)],
-    [`${migrationDir}/${migrationFile}`, renderMigration(names, command.fields, timestamp, options)]
+    [
+      `${migrationDir}/${migrationFile}`,
+      renderMigration(names, command.fields, timestamp, options),
+    ],
   ];
 
   return files.map(([relativePath, content]) => ({
     relativePath,
     absolutePath: path.resolve(command.cwd, relativePath),
-    content
+    content,
   }));
 }
 
@@ -80,6 +88,6 @@ function createTimestamp(): string {
     pad(now.getUTCDate()),
     pad(now.getUTCHours()),
     pad(now.getUTCMinutes()),
-    pad(now.getUTCSeconds())
+    pad(now.getUTCSeconds()),
   ].join('');
 }

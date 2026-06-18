@@ -13,28 +13,31 @@ function captureIo() {
       write(chunk: string) {
         output += chunk;
         return true;
-      }
+      },
     },
     getOutput() {
       return output;
-    }
+    },
   };
 }
 
 test('next steps reflect custom src and resource directories', async () => {
   const io = captureIo();
 
-  await runCli([
-    'generate',
-    'resource',
-    'user',
-    'email:string',
-    '--src',
-    'server',
-    '--resource-dir',
-    'features',
-    '--dry-run'
-  ], io);
+  await runCli(
+    [
+      'generate',
+      'resource',
+      'user',
+      'email:string',
+      '--src',
+      'server',
+      '--resource-dir',
+      'features',
+      '--dry-run',
+    ],
+    io,
+  );
 
   const output = io.getOutput();
   assert.match(output, /from '\.\/server\/features\/users\/users\.module'/);
@@ -57,14 +60,7 @@ test('prints supported field types', async () => {
 test('verbose dry-run prints generated file contents', async () => {
   const io = captureIo();
 
-  await runCli([
-    'generate',
-    'resource',
-    'post',
-    'title:string',
-    '--dry-run',
-    '--verbose'
-  ], io);
+  await runCli(['generate', 'resource', 'post', 'title:string', '--dry-run', '--verbose'], io);
 
   const output = io.getOutput();
   assert.match(output, /--- src\/resources\/posts\/posts\.controller\.ts ---/);
@@ -77,7 +73,9 @@ test('wires generated module into app.module.ts', async () => {
   try {
     const appModulePath = path.join(cwd, 'src', 'app.module.ts');
     await mkdir(path.dirname(appModulePath), { recursive: true });
-    await writeFile(appModulePath, `import { Module } from '@nestjs/common';
+    await writeFile(
+      appModulePath,
+      `import { Module } from '@nestjs/common';
 
 @Module({
   imports: [],
@@ -85,18 +83,14 @@ test('wires generated module into app.module.ts', async () => {
   providers: [],
 })
 export class AppModule {}
-`, 'utf8');
+`,
+      'utf8',
+    );
 
-    await runCli([
-      'generate',
-      'resource',
-      'post',
-      'title:string',
-      '--cwd',
-      cwd,
-      '--wire',
-      'src/app.module.ts'
-    ], captureIo());
+    await runCli(
+      ['generate', 'resource', 'post', 'title:string', '--cwd', cwd, '--wire', 'src/app.module.ts'],
+      captureIo(),
+    );
 
     const updated = await readFile(appModulePath, 'utf8');
     assert.match(updated, /import { PostModule } from '\.\/resources\/posts\/posts\.module';/);

@@ -11,26 +11,25 @@ test('loads defaults from .nstcrc.json', async () => {
   const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-config-'));
 
   try {
-    await writeFile(path.join(cwd, '.nstcrc.json'), JSON.stringify({
-      resourceDir: 'features',
-      db: 'mysql',
-      stringLength: 120
-    }), 'utf8');
+    await writeFile(
+      path.join(cwd, '.nstcrc.json'),
+      JSON.stringify({
+        resourceDir: 'features',
+        db: 'mysql',
+        stringLength: 120,
+      }),
+      'utf8',
+    );
 
     assert.deepEqual(loadConfig(cwd), {
       resourceDir: 'features',
       db: 'mysql',
-      stringLength: 120
+      stringLength: 120,
     });
 
-    const command = asGenerateCommand(await parseCommand([
-      'generate',
-      'resource',
-      'post',
-      'title:string',
-      '--cwd',
-      cwd
-    ]));
+    const command = asGenerateCommand(
+      await parseCommand(['generate', 'resource', 'post', 'title:string', '--cwd', cwd]),
+    );
 
     assert.equal(command.resourceDir, 'features');
     assert.equal(command.db, 'mysql');
@@ -46,16 +45,18 @@ test('cli flags override config file defaults', async () => {
   try {
     await writeFile(path.join(cwd, '.nstcrc.json'), JSON.stringify({ db: 'mysql' }), 'utf8');
 
-    const command = asGenerateCommand(await parseCommand([
-      'generate',
-      'resource',
-      'post',
-      'title:string',
-      '--cwd',
-      cwd,
-      '--db',
-      'sqlite'
-    ]));
+    const command = asGenerateCommand(
+      await parseCommand([
+        'generate',
+        'resource',
+        'post',
+        'title:string',
+        '--cwd',
+        cwd,
+        '--db',
+        'sqlite',
+      ]),
+    );
 
     assert.equal(command.db, 'sqlite');
   } finally {

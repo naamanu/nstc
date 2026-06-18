@@ -19,7 +19,7 @@ export function buildModuleImportPath({
   wire,
   src,
   resourceDir,
-  names
+  names,
 }: {
   cwd: string;
   wire: string;
@@ -28,7 +28,13 @@ export function buildModuleImportPath({
   names: ResourceNames;
 }): string {
   const moduleFile = path.join(cwd, wire);
-  const resourceModule = path.join(cwd, src, resourceDir, names.kebabPlural, `${names.kebabPlural}.module.ts`);
+  const resourceModule = path.join(
+    cwd,
+    src,
+    resourceDir,
+    names.kebabPlural,
+    `${names.kebabPlural}.module.ts`,
+  );
   let relative = path.relative(path.dirname(moduleFile), resourceModule);
   relative = relative.replace(/\.ts$/, '').split(path.sep).join('/');
 
@@ -66,7 +72,7 @@ export async function wireAppModule(command: ScaffoldConfig, names: ResourceName
     wire: command.wire,
     src: command.src,
     resourceDir: command.resourceDir,
-    names
+    names,
   });
   const moduleName = `${names.className}Module`;
   const source = await readFile(modulePath, 'utf8');
@@ -77,7 +83,7 @@ export async function wireAppModule(command: ScaffoldConfig, names: ResourceName
       modulePath: command.wire,
       wired: false as const,
       reason: result.reason,
-      dryRun: command.dryRun
+      dryRun: command.dryRun,
     };
   }
 
@@ -90,7 +96,7 @@ export async function wireAppModule(command: ScaffoldConfig, names: ResourceName
     wired: true as const,
     importPath,
     moduleName,
-    dryRun: command.dryRun
+    dryRun: command.dryRun,
   };
 }
 
@@ -117,9 +123,7 @@ function insertIntoImportsArray(source: string, moduleName: string): string {
   }
 
   const inner = array.inner.trim();
-  const replacement = inner.length === 0
-    ? `[${moduleName}]`
-    : `[${moduleName}, ${inner}]`;
+  const replacement = inner.length === 0 ? `[${moduleName}]` : `[${moduleName}, ${inner}]`;
 
   return `${source.slice(0, array.start)}${replacement}${source.slice(array.end + 1)}`;
 }
@@ -145,7 +149,7 @@ function findBracketedSection(source: string, marker: string): BracketSection | 
         return {
           start: bracketStart,
           end: index,
-          inner: source.slice(bracketStart + 1, index)
+          inner: source.slice(bracketStart + 1, index),
         };
       }
     }

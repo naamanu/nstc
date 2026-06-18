@@ -7,19 +7,14 @@ import path from 'node:path';
 import { destroyResource } from '../src/destroy.js';
 import { generateResource } from '../src/generator.js';
 import { buildNames } from '../src/naming.js';
-import {
-  renderEntity,
-  renderMigration,
-  renderModule,
-  renderService
-} from '../src/templates.js';
+import { renderEntity, renderMigration, renderModule, renderService } from '../src/templates.js';
 import { makeDestroyCommand, makeField, makeGenerateCommand } from './helpers.js';
 
 test('entity supports unique columns and belongsTo relations', () => {
   const names = buildNames('post');
   const fields = [
     makeField({ name: 'slug', type: 'string', unique: true }),
-    makeField({ name: 'userId', type: 'uuid', relation: { kind: 'belongsTo', target: 'User' } })
+    makeField({ name: 'userId', type: 'uuid', relation: { kind: 'belongsTo', target: 'User' } }),
   ];
   const entity = renderEntity(names, fields, { resourceDir: 'resources' });
 
@@ -32,7 +27,7 @@ test('entity supports unique columns and belongsTo relations', () => {
 test('module registers related entities in TypeOrmModule.forFeature', () => {
   const names = buildNames('post');
   const fields = [
-    makeField({ name: 'userId', type: 'uuid', relation: { kind: 'belongsTo', target: 'User' } })
+    makeField({ name: 'userId', type: 'uuid', relation: { kind: 'belongsTo', target: 'User' } }),
   ];
   const moduleSource = renderModule(names, fields, { resourceDir: 'resources' });
 
@@ -66,18 +61,22 @@ test('destroy removes resource directory and matching migration', async () => {
   const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-destroy-'));
 
   try {
-    await generateResource(makeGenerateCommand({
-      cwd,
-      resource: 'post',
-      timestamp: '20260514123456',
-      dryRun: false
-    }));
+    await generateResource(
+      makeGenerateCommand({
+        cwd,
+        resource: 'post',
+        timestamp: '20260514123456',
+        dryRun: false,
+      }),
+    );
 
-    const result = await destroyResource(makeDestroyCommand({
-      cwd,
-      resource: 'post',
-      dryRun: false
-    }));
+    const result = await destroyResource(
+      makeDestroyCommand({
+        cwd,
+        resource: 'post',
+        dryRun: false,
+      }),
+    );
 
     assert.equal(result.removed.length, 2);
     assert.equal(existsSync(path.join(cwd, 'src/resources/posts')), false);
@@ -96,11 +95,13 @@ test('destroy dry run reports paths without deleting files', async () => {
     await mkdir(path.join(cwd, 'src/migrations'), { recursive: true });
     await writeFile(path.join(cwd, 'src/migrations/20260514123456-CreatePosts.ts'), 'keep', 'utf8');
 
-    const result = await destroyResource(makeDestroyCommand({
-      cwd,
-      resource: 'post',
-      dryRun: true
-    }));
+    const result = await destroyResource(
+      makeDestroyCommand({
+        cwd,
+        resource: 'post',
+        dryRun: true,
+      }),
+    );
 
     assert.equal(result.removed.length, 2);
     assert.equal(existsSync(path.join(cwd, 'src/resources/posts/posts.module.ts')), true);

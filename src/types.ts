@@ -8,7 +8,7 @@ import type {
   MigrationColumnSpec,
   RenderOptions,
   ResourceNames,
-  ScaffoldConfig
+  ScaffoldConfig,
 } from './models.js';
 
 export const SUPPORTED_ID_STRATEGIES: IdStrategy[] = ['uuid', 'serial'];
@@ -25,7 +25,7 @@ export const TYPE_ALIASES = new Map<string, FieldType>([
   ['date', 'date'],
   ['datetime', 'datetime'],
   ['uuid', 'uuid'],
-  ['json', 'json']
+  ['json', 'json'],
 ]);
 
 export const SUPPORTED_DBS: DbDialect[] = ['postgres', 'mysql', 'sqlite'];
@@ -45,56 +45,56 @@ export const FIELD_TYPE_DEFS: Record<FieldType, FieldTypeDef> = {
     validators: ['IsString'],
     requiredExtra: ['IsNotEmpty'],
     columnType: { postgres: 'varchar', mysql: 'varchar', sqlite: 'varchar' },
-    hasLength: true
+    hasLength: true,
   },
   text: {
     ts: 'string',
     validators: ['IsString'],
     requiredExtra: ['IsNotEmpty'],
-    columnType: { postgres: 'text', mysql: 'text', sqlite: 'text' }
+    columnType: { postgres: 'text', mysql: 'text', sqlite: 'text' },
   },
   number: {
     ts: 'number',
     validators: ['IsNumber'],
-    columnType: { postgres: 'float', mysql: 'float', sqlite: 'real' }
+    columnType: { postgres: 'float', mysql: 'float', sqlite: 'real' },
   },
   int: {
     ts: 'number',
     validators: ['IsInt'],
-    columnType: { postgres: 'int', mysql: 'int', sqlite: 'integer' }
+    columnType: { postgres: 'int', mysql: 'int', sqlite: 'integer' },
   },
   float: {
     ts: 'number',
     validators: ['IsNumber'],
-    columnType: { postgres: 'float', mysql: 'float', sqlite: 'real' }
+    columnType: { postgres: 'float', mysql: 'float', sqlite: 'real' },
   },
   boolean: {
     ts: 'boolean',
     validators: ['IsBoolean'],
-    columnType: { postgres: 'boolean', mysql: 'tinyint', sqlite: 'boolean' }
+    columnType: { postgres: 'boolean', mysql: 'tinyint', sqlite: 'boolean' },
   },
   date: {
     ts: 'Date',
     validators: ['IsDateString'],
-    columnType: { postgres: 'date', mysql: 'date', sqlite: 'date' }
+    columnType: { postgres: 'date', mysql: 'date', sqlite: 'date' },
   },
   datetime: {
     ts: 'Date',
     validators: ['IsDateString'],
-    columnType: { postgres: 'timestamp', mysql: 'timestamp', sqlite: 'datetime' }
+    columnType: { postgres: 'timestamp', mysql: 'timestamp', sqlite: 'datetime' },
   },
   uuid: {
     ts: 'string',
     validators: ['IsUUID'],
     columnType: { postgres: 'uuid', mysql: 'varchar', sqlite: 'varchar' },
     hasLength: true,
-    lengthWhenSized: 36
+    lengthWhenSized: 36,
   },
   json: {
     ts: 'Record<string, unknown>',
     validators: ['IsObject'],
-    columnType: { postgres: 'jsonb', mysql: 'json', sqlite: 'text' }
-  }
+    columnType: { postgres: 'jsonb', mysql: 'json', sqlite: 'text' },
+  },
 };
 
 interface IdColumnSpec {
@@ -119,48 +119,48 @@ export const DB_CONFIG: Record<DbDialect, DbConfigEntry> = {
       type: 'uuid',
       isPrimary: true,
       generationStrategy: 'uuid',
-      default: 'uuid_generate_v4()'
+      default: 'uuid_generate_v4()',
     },
     serialIdColumn: {
       type: 'integer',
       isPrimary: true,
       isGenerated: true,
-      generationStrategy: 'increment'
+      generationStrategy: 'increment',
     },
     timestampType: 'timestamp',
-    timestampDefault: 'now()'
+    timestampDefault: 'now()',
   },
   mysql: {
     idColumn: {
       type: 'varchar',
       length: 36,
       isPrimary: true,
-      default: '(UUID())'
+      default: '(UUID())',
     },
     serialIdColumn: {
       type: 'int',
       isPrimary: true,
       isGenerated: true,
-      generationStrategy: 'increment'
+      generationStrategy: 'increment',
     },
     timestampType: 'timestamp',
-    timestampDefault: 'CURRENT_TIMESTAMP'
+    timestampDefault: 'CURRENT_TIMESTAMP',
   },
   sqlite: {
     idColumn: {
       type: 'varchar',
       length: 36,
-      isPrimary: true
+      isPrimary: true,
     },
     serialIdColumn: {
       type: 'integer',
       isPrimary: true,
       isGenerated: true,
-      generationStrategy: 'increment'
+      generationStrategy: 'increment',
     },
     timestampType: 'datetime',
-    timestampDefault: "datetime('now')"
-  }
+    timestampDefault: "datetime('now')",
+  },
 };
 
 export function resolveRenderOptions(command: ScaffoldConfig | GenerateCommand): RenderOptions {
@@ -171,7 +171,7 @@ export function resolveRenderOptions(command: ScaffoldConfig | GenerateCommand):
     pagination: command.pagination ?? false,
     idStrategy: command.idStrategy ?? 'uuid',
     softDelete: command.softDelete ?? false,
-    resourceDir: command.resourceDir ?? 'resources'
+    resourceDir: command.resourceDir ?? 'resources',
   };
 }
 
@@ -179,14 +179,22 @@ export function resolveRelationTarget(className: string): ResourceNames {
   return buildNames(className);
 }
 
-export function relationEntityImport(currentNames: ResourceNames, targetNames: ResourceNames, resourceDir: string): string {
+export function relationEntityImport(
+  currentNames: ResourceNames,
+  targetNames: ResourceNames,
+  resourceDir: string,
+): string {
   const from = `${resourceDir}/${currentNames.kebabPlural}/entities`;
   const to = `${resourceDir}/${targetNames.kebabPlural}/entities/${targetNames.kebab}.entity`;
   const segments = to.split('/').filter(Boolean);
   const fromSegments = from.split('/').filter(Boolean);
   let shared = 0;
 
-  while (shared < fromSegments.length && shared < segments.length && fromSegments[shared] === segments[shared]) {
+  while (
+    shared < fromSegments.length &&
+    shared < segments.length &&
+    fromSegments[shared] === segments[shared]
+  ) {
     shared += 1;
   }
 
@@ -210,7 +218,9 @@ export function columnTypeFor(field: FieldDefinition, db: DbDialect): string {
 
 export function validatorsFor(field: FieldDefinition): string[] {
   const def = FIELD_TYPE_DEFS[field.type];
-  const names = field.optional ? [...def.validators] : [...(def.requiredExtra ?? []), ...def.validators];
+  const names = field.optional
+    ? [...def.validators]
+    : [...(def.requiredExtra ?? []), ...def.validators];
   if (field.optional) names.unshift('IsOptional');
   return names;
 }
@@ -236,11 +246,14 @@ export function entityColumnOptions(field: FieldDefinition, options: RenderOptio
   return `{ ${parts.join(', ')} }`;
 }
 
-export function migrationColumnSpec(field: FieldDefinition, options: RenderOptions): MigrationColumnSpec {
+export function migrationColumnSpec(
+  field: FieldDefinition,
+  options: RenderOptions,
+): MigrationColumnSpec {
   const def = FIELD_TYPE_DEFS[field.type];
   const spec: MigrationColumnSpec = {
     name: field.name,
-    type: columnTypeFor(field, options.db)
+    type: columnTypeFor(field, options.db),
   };
 
   if (def.hasLength) {
@@ -281,7 +294,7 @@ export function formatMigrationIdColumn(db: DbDialect, idStrategy: IdStrategy = 
   const lines = [
     "            name: 'id'",
     `            type: '${spec.type}'`,
-    '            isPrimary: true'
+    '            isPrimary: true',
   ];
 
   if (spec.length !== undefined) {
@@ -306,13 +319,10 @@ export function formatMigrationIdColumn(db: DbDialect, idStrategy: IdStrategy = 
 export function formatMigrationTimestampColumn(
   name: string,
   db: DbDialect,
-  { nullable = false }: { nullable?: boolean } = {}
+  { nullable = false }: { nullable?: boolean } = {},
 ): string {
   const config = DB_CONFIG[db];
-  const lines = [
-    `            name: '${name}'`,
-    `            type: '${config.timestampType}'`
-  ];
+  const lines = [`            name: '${name}'`, `            type: '${config.timestampType}'`];
 
   if (!nullable) {
     lines.push(`            default: '${config.timestampDefault}'`);
@@ -323,7 +333,10 @@ export function formatMigrationTimestampColumn(
   return `          {\n${lines.join(',\n')},\n          }`;
 }
 
-export function formatMigrationForeignKeys(fields: FieldDefinition[], _options: RenderOptions): string {
+export function formatMigrationForeignKeys(
+  fields: FieldDefinition[],
+  _options: RenderOptions,
+): string {
   const keys = fields
     .filter((field) => field.relation?.kind === 'belongsTo')
     .map((field) => {
@@ -372,6 +385,6 @@ export function formatTypeList(): string {
     '',
     'Supported id strategies:',
     `  ${SUPPORTED_ID_STRATEGIES.join(', ')}`,
-    ''
+    '',
   ].join('\n');
 }

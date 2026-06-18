@@ -6,7 +6,7 @@ import type {
   GenerateCommand,
   IdStrategy,
   ParsedCommand,
-  ScaffoldConfig
+  ScaffoldConfig,
 } from './models.js';
 import { TYPE_ALIASES, SUPPORTED_DBS, SUPPORTED_ID_STRATEGIES } from './types.js';
 
@@ -26,7 +26,7 @@ const DEFAULT_OPTIONS: ScaffoldConfig = {
   dryRun: false,
   force: false,
   verbose: false,
-  wire: null
+  wire: null,
 };
 
 export function parseArgs(argv: string[], config: Partial<ScaffoldConfig> = {}): ParsedCommand {
@@ -82,7 +82,7 @@ function parseGenerateCommand(tokens: string[], config: Partial<ScaffoldConfig>)
     command: 'generate',
     resource,
     fields,
-    ...options
+    ...options,
   };
 }
 
@@ -104,14 +104,14 @@ function parseDestroyCommand(tokens: string[], config: Partial<ScaffoldConfig>):
   return {
     command: 'destroy',
     resource,
-    ...options
+    ...options,
   };
 }
 
 function parseSharedOptions(tokens: string[], config: Partial<ScaffoldConfig>) {
   const options: ScaffoldConfig = {
     ...DEFAULT_OPTIONS,
-    ...config
+    ...config,
   };
   const fieldTokens: string[] = [];
 
@@ -188,7 +188,7 @@ export function parseField(token: string): FieldDefinition {
     type,
     optional: Boolean(optionalMark),
     unique: false,
-    relation: null
+    relation: null,
   };
 
   for (let index = 2; index < segments.length; index += 1) {
@@ -202,7 +202,9 @@ export function parseField(token: string): FieldDefinition {
     if (modifier === 'belongsTo') {
       const target = segments[++index];
       if (!target) {
-        throw new Error(`Missing relation target for field "${name}". Use name:type:belongsTo:Model.`);
+        throw new Error(
+          `Missing relation target for field "${name}". Use name:type:belongsTo:Model.`,
+        );
       }
       field.relation = { kind: 'belongsTo', target };
       continue;
@@ -249,7 +251,7 @@ export function usage(): string {
     '  --help                  Show this help',
     '',
     'Config:',
-    '  Reads defaults from .nstcrc.json or package.json "nstc".'
+    '  Reads defaults from .nstcrc.json or package.json "nstc".',
   ].join('\n');
 }
 
@@ -278,11 +280,15 @@ function validateFields(fields: FieldDefinition[]): void {
 
 function validateConfigOptions(options: ScaffoldConfig): void {
   if (!SUPPORTED_DBS.includes(options.db)) {
-    throw new Error(`Unsupported database "${options.db}". Use one of: ${SUPPORTED_DBS.join(', ')}.`);
+    throw new Error(
+      `Unsupported database "${options.db}". Use one of: ${SUPPORTED_DBS.join(', ')}.`,
+    );
   }
 
   if (!SUPPORTED_ID_STRATEGIES.includes(options.idStrategy)) {
-    throw new Error(`Unsupported id strategy "${options.idStrategy}". Use one of: ${SUPPORTED_ID_STRATEGIES.join(', ')}.`);
+    throw new Error(
+      `Unsupported id strategy "${options.idStrategy}". Use one of: ${SUPPORTED_ID_STRATEGIES.join(', ')}.`,
+    );
   }
 
   if (!Number.isInteger(options.stringLength) || options.stringLength <= 0) {
@@ -309,7 +315,9 @@ function readDbOption(tokens: string[], index: number): DbDialect {
 function readIdStrategyOption(tokens: string[], index: number): IdStrategy {
   const value = readOptionValue(tokens, index, '--id').toLowerCase();
   if (!SUPPORTED_ID_STRATEGIES.includes(value as IdStrategy)) {
-    throw new Error(`Unsupported id strategy "${value}". Use one of: ${SUPPORTED_ID_STRATEGIES.join(', ')}.`);
+    throw new Error(
+      `Unsupported id strategy "${value}". Use one of: ${SUPPORTED_ID_STRATEGIES.join(', ')}.`,
+    );
   }
   return value as IdStrategy;
 }

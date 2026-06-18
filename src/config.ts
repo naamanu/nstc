@@ -6,7 +6,15 @@ const CONFIG_FILE = '.nstcrc.json';
 
 type ConfigKey = keyof Pick<
   ScaffoldConfig,
-  'src' | 'resourceDir' | 'migrationDir' | 'db' | 'stringLength' | 'idStrategy' | 'swagger' | 'pagination' | 'softDelete'
+  | 'src'
+  | 'resourceDir'
+  | 'migrationDir'
+  | 'db'
+  | 'stringLength'
+  | 'idStrategy'
+  | 'swagger'
+  | 'pagination'
+  | 'softDelete'
 >;
 
 const CONFIG_KEYS: ConfigKey[] = [
@@ -18,7 +26,7 @@ const CONFIG_KEYS: ConfigKey[] = [
   'idStrategy',
   'swagger',
   'pagination',
-  'softDelete'
+  'softDelete',
 ];
 
 export function loadConfig(cwd = process.cwd()): Partial<ScaffoldConfig> {
@@ -34,7 +42,7 @@ function readJsonConfig(filePath: string): Record<string, unknown> {
 
   try {
     const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as unknown;
-    return typeof parsed === 'object' && parsed !== null ? parsed as Record<string, unknown> : {};
+    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {};
   } catch {
     throw new Error(`Invalid JSON in ${path.basename(filePath)}.`);
   }
@@ -48,7 +56,7 @@ function readPackageConfig(filePath: string): Record<string, unknown> {
   try {
     const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as Record<string, unknown>;
     const config = parsed.nstc;
-    return typeof config === 'object' && config !== null ? config as Record<string, unknown> : {};
+    return typeof config === 'object' && config !== null ? (config as Record<string, unknown>) : {};
   } catch {
     return {};
   }

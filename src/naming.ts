@@ -3,7 +3,9 @@ import type { ResourceNames } from './models.js';
 export function buildNames(resource: string): ResourceNames {
   const normalized = resource.trim();
   if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(normalized)) {
-    throw new Error('Resource name must start with a letter and contain only letters, numbers, hyphens, or underscores.');
+    throw new Error(
+      'Resource name must start with a letter and contain only letters, numbers, hyphens, or underscores.',
+    );
   }
 
   const words = splitWords(normalized);
@@ -20,7 +22,7 @@ export function buildNames(resource: string): ResourceNames {
     kebab: singularWords.join('-'),
     kebabPlural: pluralWords.join('-'),
     tableName: pluralWords.join('_'),
-    route: pluralWords.join('-')
+    route: pluralWords.join('-'),
   };
 }
 
@@ -58,7 +60,13 @@ function pluralizeLast(words: string[]): string[] {
 
 function singularize(word: string): string {
   if (word.endsWith('ies')) return `${word.slice(0, -3)}y`;
-  if (word.endsWith('ses') || word.endsWith('xes') || word.endsWith('zes') || word.endsWith('ches') || word.endsWith('shes')) {
+  if (
+    word.endsWith('ses') ||
+    word.endsWith('xes') ||
+    word.endsWith('zes') ||
+    word.endsWith('ches') ||
+    word.endsWith('shes')
+  ) {
     return word.replace(/es$/, '');
   }
   if (word.endsWith('s') && !word.endsWith('ss')) {

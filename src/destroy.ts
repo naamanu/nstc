@@ -21,18 +21,21 @@ export async function destroyResource(command: DestroyCommand): Promise<DestroyR
   return {
     names,
     dryRun: command.dryRun,
-    removed: targets.map((target) => target.relativePath)
+    removed: targets.map((target) => target.relativePath),
   };
 }
 
-async function collectDestroyTargets(command: DestroyCommand, names: ReturnType<typeof buildNames>) {
+async function collectDestroyTargets(
+  command: DestroyCommand,
+  names: ReturnType<typeof buildNames>,
+) {
   const targets: Array<{ relativePath: string; absolutePath: string }> = [];
   const resourceDir = path.join(command.cwd, command.src, command.resourceDir, names.kebabPlural);
 
   if (existsSync(resourceDir)) {
     targets.push({
       relativePath: path.join(command.src, command.resourceDir, names.kebabPlural),
-      absolutePath: resourceDir
+      absolutePath: resourceDir,
     });
   }
 
@@ -45,7 +48,7 @@ async function collectDestroyTargets(command: DestroyCommand, names: ReturnType<
       if (entry.endsWith(suffix)) {
         targets.push({
           relativePath: path.join(command.src, command.migrationDir, entry),
-          absolutePath: path.join(migrationDir, entry)
+          absolutePath: path.join(migrationDir, entry),
         });
       }
     }

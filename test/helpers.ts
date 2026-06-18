@@ -1,4 +1,9 @@
-import type { DestroyCommand, FieldDefinition, GenerateCommand, ParsedCommand } from '../src/models.js';
+import type {
+  DestroyCommand,
+  FieldDefinition,
+  GenerateCommand,
+  ParsedCommand,
+} from '../src/models.js';
 
 export const defaultScaffoldOptions = {
   cwd: process.cwd(),
@@ -14,15 +19,17 @@ export const defaultScaffoldOptions = {
   dryRun: false,
   force: false,
   verbose: false,
-  wire: null
+  wire: null,
 };
 
-export function makeField(overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'name' | 'type'>): FieldDefinition {
+export function makeField(
+  overrides: Partial<FieldDefinition> & Pick<FieldDefinition, 'name' | 'type'>,
+): FieldDefinition {
   return {
     optional: false,
     unique: false,
     relation: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -32,7 +39,7 @@ export function makeGenerateCommand(overrides: Partial<GenerateCommand> = {}): G
     resource: 'post',
     fields: [makeField({ name: 'title', type: 'string' })],
     ...defaultScaffoldOptions,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -41,7 +48,7 @@ export function makeDestroyCommand(overrides: Partial<DestroyCommand> = {}): Des
     command: 'destroy',
     resource: 'post',
     ...defaultScaffoldOptions,
-    ...overrides
+    ...overrides,
   };
 }
 

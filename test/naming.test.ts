@@ -25,7 +25,7 @@ test('handles compound and inflected names', () => {
     kebab: 'blog-post',
     kebabPlural: 'blog-posts',
     tableName: 'blog_posts',
-    route: 'blog-posts'
+    route: 'blog-posts',
   });
 
   const category = buildNames('category');

@@ -17,7 +17,7 @@ export class AppModule {}
 test('wires a generated module into an empty imports array', () => {
   const result = wireModuleSource(appModule, {
     moduleName: 'PostModule',
-    importPath: './resources/posts/posts.module'
+    importPath: './resources/posts/posts.module',
   });
 
   assert.equal(result.wired, true);
@@ -29,19 +29,23 @@ test('appends to an existing imports array', () => {
   const source = appModule.replace('imports: []', 'imports: [AppService],');
   const result = wireModuleSource(source, {
     moduleName: 'PostModule',
-    importPath: './resources/posts/posts.module'
+    importPath: './resources/posts/posts.module',
   });
 
   assert.match(result.source, /imports: \[PostModule, AppService\]/);
 });
 
 test('skips wiring when module is already imported', () => {
-  const source = appModule.replace('imports: []', 'imports: [PostModule],')
-    .replace("from './app.service';", "from './app.service';\nimport { PostModule } from './resources/posts/posts.module';");
+  const source = appModule
+    .replace('imports: []', 'imports: [PostModule],')
+    .replace(
+      "from './app.service';",
+      "from './app.service';\nimport { PostModule } from './resources/posts/posts.module';",
+    );
 
   const result = wireModuleSource(source, {
     moduleName: 'PostModule',
-    importPath: './resources/posts/posts.module'
+    importPath: './resources/posts/posts.module',
   });
 
   assert.equal(result.wired, false);
@@ -57,11 +61,11 @@ export class AppModule {}`;
 
   const result = wireModuleSource(source, {
     moduleName: 'PostModule',
-    importPath: './resources/posts/posts.module'
+    importPath: './resources/posts/posts.module',
   });
 
   assert.match(
     result.source,
-    /imports: \[PostModule, TypeOrmModule\.forRoot\(\{ type: 'postgres' \}\)\]/
+    /imports: \[PostModule, TypeOrmModule\.forRoot\(\{ type: 'postgres' \}\)\]/,
   );
 });
