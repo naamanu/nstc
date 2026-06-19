@@ -198,6 +198,36 @@ test('validation modifier decorators appear after standard validators', () => {
   assert.ok(isNotEmpty < minLen, '@IsNotEmpty should appear before @MinLength');
 });
 
+test('--parent prefixes route and adds parentId param to all methods', () => {
+  const commentNames = buildNames('comment');
+  const controller = renderController(commentNames, { parent: 'post' });
+
+  assert.match(controller, /@Controller\('posts\/:postId\/comments'\)/);
+  assert.match(controller, /postId: string/);
+  assert.match(controller, /findAll\(@Param\('postId'/);
+  assert.match(controller, /findOne\(\n.*postId.*\n.*id/s);
+});
+
+test('--parent scopes findAll to parent id in service', () => {
+  const commentNames = buildNames('comment');
+  const service = renderService(commentNames, { parent: 'post' });
+
+  assert.match(service, /findAll\(postId: string\)/);
+  assert.match(service, /where: \{ postId \}/);
+});
+
+test('--parent with --pagination combines both params in findAll', () => {
+  const commentNames = buildNames('comment');
+  const controller = renderController(commentNames, { parent: 'post', pagination: true });
+
+  assert.match(controller, /postId.*skip.*take/s);
+
+  const service = renderService(commentNames, { parent: 'post', pagination: true });
+  assert.match(service, /findAll\(postId: string, skip = 0, take = 25\)/);
+  assert.match(service, /where: \{ postId \}/);
+  assert.match(service, /safeSkip/);
+});
+
 test('renderServiceSpec emits Test.createTestingModule with service provider', () => {
   const serviceSpec = renderServiceSpec(names);
 

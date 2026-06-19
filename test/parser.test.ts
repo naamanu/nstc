@@ -234,6 +234,13 @@ test('rejects hasMany without a target model', () => {
   assert.throws(() => parseField('avatar:hasOne'), /Missing relation target/);
 });
 
+test('--parent sets parent resource', () => {
+  const command = asGenerateCommand(
+    parseArgs(['generate', 'resource', 'comment', 'body:text', '--parent', 'post']),
+  );
+  assert.equal(command.parent, 'post');
+});
+
 test('--tests flag sets tests: true', () => {
   const command = asGenerateCommand(
     parseArgs(['generate', 'resource', 'post', 'title:string', '--tests']),

@@ -186,6 +186,7 @@ export function resolveRenderOptions(command: ScaffoldConfig | GenerateCommand):
     resourceDir: command.resourceDir ?? 'resources',
     entityDir: command.entityDir ?? 'entities',
     dtoDir: command.dtoDir ?? 'dto',
+    ...(command.parent ? { parent: command.parent } : {}),
   };
 }
 

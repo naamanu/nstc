@@ -15,6 +15,7 @@ import {
   validationModifiers,
   validatorsFor,
 } from './types.js';
+import { buildNames } from './naming.js';
 import type { FieldDefinition, RenderOptions, ResourceNames } from './models.js';
 
 function renderOptions(options: Partial<RenderOptions> = {}): RenderOptions {
@@ -28,6 +29,7 @@ function renderOptions(options: Partial<RenderOptions> = {}): RenderOptions {
     resourceDir: options.resourceDir ?? 'resources',
     entityDir: options.entityDir ?? 'entities',
     dtoDir: options.dtoDir ?? 'dto',
+    ...(options.parent ? { parent: options.parent } : {}),
   };
 }
 
@@ -77,6 +79,7 @@ export function renderController(
   const config = renderOptions(options);
   const parsePipe = idPipe(config);
   const paramType = idType(config);
+  const parentNames = config.parent ? buildNames(config.parent) : null;
   const commonImports = [
     'Body',
     'Controller',
@@ -90,13 +93,9 @@ export function renderController(
   const queryImport = config.pagination ? ', Query' : '';
   const swaggerImports = config.swagger ? "\nimport { ApiTags } from '@nestjs/swagger';" : '';
   const swaggerDecorator = config.swagger ? `\n@ApiTags('${names.route}')` : '';
-  const findAllParams = config.pagination
-    ? "@Query('skip') skip?: string, @Query('take') take?: string"
-    : '';
-  const findAllBody = config.pagination
-    ? `    return this.${names.camel}Service.findAll(toPaginationInt(skip, 0), toPaginationInt(take, 25));`
-    : `    return this.${names.camel}Service.findAll();`;
-  const findAllSignature = config.pagination ? `findAll(${findAllParams})` : 'findAll()';
+  const route = parentNames
+    ? `${parentNames.route}/:${parentNames.camel}Id/${names.route}`
+    : names.route;
   // Query params are user-controlled strings; guard against NaN/negatives before
   // they reach the repository (a bare Number.parseInt('abc') would yield NaN).
   const paginationHelper = config.pagination
@@ -106,37 +105,75 @@ export function renderController(
 }\n`
     : '';
 
+  const parentParamDecl = parentNames
+    ? `@Param('${parentNames.camel}Id', ${parsePipe}) ${parentNames.camel}Id: ${paramType}`
+    : null;
+  const paginationParamDecl = config.pagination
+    ? `@Query('skip') skip?: string, @Query('take') take?: string`
+    : null;
+
+  // findAll: parent id and/or pagination params
+  let findAllSig: string;
+  let findAllArg: string;
+  if (parentParamDecl && paginationParamDecl) {
+    findAllSig = `findAll(\n    ${parentParamDecl},\n    ${paginationParamDecl},\n  )`;
+    findAllArg = `${parentNames!.camel}Id, toPaginationInt(skip, 0), toPaginationInt(take, 25)`;
+  } else if (parentParamDecl) {
+    findAllSig = `findAll(${parentParamDecl})`;
+    findAllArg = `${parentNames!.camel}Id`;
+  } else if (paginationParamDecl) {
+    findAllSig = `findAll(${paginationParamDecl})`;
+    findAllArg = `toPaginationInt(skip, 0), toPaginationInt(take, 25)`;
+  } else {
+    findAllSig = 'findAll()';
+    findAllArg = '';
+  }
+  const findAllBody = `    return this.${names.camel}Service.findAll(${findAllArg});`;
+
+  // Methods that take an :id param; parent id prepended when nested
+  const idParam = `@Param('id', ${parsePipe}) id: ${paramType}`;
+  const findOneParams = parentParamDecl
+    ? `\n    ${parentParamDecl},\n    ${idParam},\n  `
+    : idParam;
+  const updateParams = parentParamDecl
+    ? `\n    ${parentParamDecl},\n    ${idParam},\n    @Body() update${names.className}Dto: Update${names.className}Dto,\n  `
+    : `${idParam}, @Body() update${names.className}Dto: Update${names.className}Dto`;
+  const removeParams = parentParamDecl ? `\n    ${parentParamDecl},\n    ${idParam},\n  ` : idParam;
+  const createParams = parentParamDecl
+    ? `\n    ${parentParamDecl},\n    @Body() create${names.className}Dto: Create${names.className}Dto,\n  `
+    : `@Body() create${names.className}Dto: Create${names.className}Dto`;
+
   return `import { ${commonImports.join(', ')}${queryImport} } from '@nestjs/common';${swaggerImports}
 import { Create${names.className}Dto } from './${config.dtoDir}/create-${names.kebab}.dto';
 import { Update${names.className}Dto } from './${config.dtoDir}/update-${names.kebab}.dto';
 import { ${names.className}Service } from './${names.kebabPlural}.service';
 ${paginationHelper}${swaggerDecorator}
-@Controller('${names.route}')
+@Controller('${route}')
 export class ${names.className}Controller {
   constructor(private readonly ${names.camel}Service: ${names.className}Service) {}
 
   @Post()
-  create(@Body() create${names.className}Dto: Create${names.className}Dto) {
+  create(${createParams}) {
     return this.${names.camel}Service.create(create${names.className}Dto);
   }
 
   @Get()
-  ${findAllSignature} {
+  ${findAllSig} {
 ${findAllBody}
   }
 
   @Get(':id')
-  findOne(@Param('id', ${parsePipe}) id: ${paramType}) {
+  findOne(${findOneParams}) {
     return this.${names.camel}Service.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id', ${parsePipe}) id: ${paramType}, @Body() update${names.className}Dto: Update${names.className}Dto) {
+  update(${updateParams}) {
     return this.${names.camel}Service.update(id, update${names.className}Dto);
   }
 
   @Delete(':id')
-  remove(@Param('id', ${parsePipe}) id: ${paramType}) {
+  remove(${removeParams}) {
     return this.${names.camel}Service.remove(id);
   }
 }
@@ -146,18 +183,33 @@ ${findAllBody}
 export function renderService(names: ResourceNames, options: Partial<RenderOptions> = {}): string {
   const config = renderOptions(options);
   const paramType = idType(config);
+  const parentNames = config.parent ? buildNames(config.parent) : null;
   const removeMethod = config.softDelete
     ? `    await this.${names.camel}Repository.softRemove(${names.camel});`
     : `    await this.${names.camel}Repository.remove(${names.camel});`;
-  const findAllMethod = config.pagination
-    ? `  findAll(skip = 0, take = 25) {
+
+  let findAllMethod: string;
+  if (parentNames && config.pagination) {
+    findAllMethod = `  findAll(${parentNames.camel}Id: ${paramType}, skip = 0, take = 25) {
+    const safeSkip = Number.isFinite(skip) && skip >= 0 ? skip : 0;
+    const safeTake = Number.isFinite(take) && take > 0 ? Math.min(take, 100) : 25;
+    return this.${names.camel}Repository.find({ where: { ${parentNames.camel}Id } as any, skip: safeSkip, take: safeTake });
+  }`;
+  } else if (parentNames) {
+    findAllMethod = `  findAll(${parentNames.camel}Id: ${paramType}) {
+    return this.${names.camel}Repository.find({ where: { ${parentNames.camel}Id } as any });
+  }`;
+  } else if (config.pagination) {
+    findAllMethod = `  findAll(skip = 0, take = 25) {
     const safeSkip = Number.isFinite(skip) && skip >= 0 ? skip : 0;
     const safeTake = Number.isFinite(take) && take > 0 ? Math.min(take, 100) : 25;
     return this.${names.camel}Repository.find({ skip: safeSkip, take: safeTake });
-  }`
-    : `  findAll() {
+  }`;
+  } else {
+    findAllMethod = `  findAll() {
     return this.${names.camel}Repository.find();
   }`;
+  }
 
   return `import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';

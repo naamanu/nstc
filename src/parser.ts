@@ -32,6 +32,7 @@ const DEFAULT_OPTIONS: ScaffoldConfig = {
   tests: false,
   verbose: false,
   wire: null,
+  parent: null,
   inflections: {},
   only: [],
   skip: [],
@@ -164,6 +165,8 @@ function parseSharedOptions(tokens: string[], config: Partial<ScaffoldConfig>) {
       options.stringLength = readStringLengthOption(tokens, ++index);
     } else if (token === '--wire') {
       options.wire = readOptionValue(tokens, ++index, '--wire');
+    } else if (token === '--parent') {
+      options.parent = readOptionValue(tokens, ++index, '--parent');
     } else if (token === '--field') {
       fieldTokens.push(readOptionValue(tokens, ++index, '--field'));
     } else if (token.startsWith('--field=')) {
@@ -330,6 +333,7 @@ export function usage(): string {
     '  --swagger               Add @nestjs/swagger decorators to controller and DTOs',
     '  --pagination            Add skip/take query params to findAll',
     '  --wire <module.ts>      Import the generated module into a NestJS module file',
+    '  --parent <resource>     Generate a nested route under the parent resource',
     '  --tests                 Generate *.spec.ts stubs for controller and service',
     '  --dry-run               Print planned files without writing them',
     '  --verbose               Print generated file contents',

@@ -75,6 +75,7 @@ export interface ScaffoldConfig {
   tests: boolean;
   verbose: boolean;
   wire: string | null;
+  parent: string | null;
   // Singular -> plural overrides for resource-name inflection (config-file only).
   inflections: Record<string, string>;
   // File-kind selection: when `only` is non-empty, generate/destroy is limited to
@@ -112,6 +113,7 @@ export interface RenderOptions {
   resourceDir: string;
   entityDir: string;
   dtoDir: string;
+  parent?: string;
 }
 
 export interface PlannedFile {

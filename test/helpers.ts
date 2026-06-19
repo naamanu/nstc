@@ -24,6 +24,7 @@ export const defaultScaffoldOptions = {
   tests: false,
   verbose: false,
   wire: null,
+  parent: null,
   inflections: {},
   only: [] as FileKind[],
   skip: [] as FileKind[],
