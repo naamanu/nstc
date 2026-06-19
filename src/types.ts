@@ -432,6 +432,32 @@ ${keys.join(',\n')},
         ]`;
 }
 
+export function formatMigrationIndexes(
+  tableName: string,
+  fields: FieldDefinition[],
+): { createIndexes: string; dropIndexes: string } {
+  const fkFields = fields.filter((f) => f.relation?.kind === 'belongsTo');
+  if (fkFields.length === 0) return { createIndexes: '', dropIndexes: '' };
+
+  const indexName = (fieldName: string) => `IDX_${tableName}_${fieldName}`;
+
+  const createIndexes = fkFields
+    .map(
+      (f) =>
+        `    await queryRunner.createIndex(\n` +
+        `      '${tableName}',\n` +
+        `      new TableIndex({ name: '${indexName(f.name)}', columnNames: ['${f.name}'] }),\n` +
+        `    );`,
+    )
+    .join('\n');
+
+  const dropIndexes = fkFields
+    .map((f) => `    await queryRunner.dropIndex('${tableName}', '${indexName(f.name)}');`)
+    .join('\n');
+
+  return { createIndexes, dropIndexes };
+}
+
 export function collectRelatedEntities(fields: FieldDefinition[]): ResourceNames[] {
   const related = new Map<string, ResourceNames>();
   for (const field of fields) {

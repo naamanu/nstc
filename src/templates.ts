@@ -4,6 +4,7 @@ import {
   formatMigrationColumn,
   formatMigrationForeignKeys,
   formatMigrationIdColumn,
+  formatMigrationIndexes,
   formatMigrationTimestampColumn,
   isRelationOnly,
   migrationColumnSpec,
@@ -319,9 +320,14 @@ export function renderMigration(
     ? `,\n${formatMigrationTimestampColumn('deletedAt', config.db, { nullable: true })}`
     : '';
   const foreignKeys = formatMigrationForeignKeys(columnFields, config);
+  const { createIndexes, dropIndexes } = formatMigrationIndexes(names.tableName, columnFields);
   const tableForeignKeyImport = foreignKeys ? ', TableForeignKey' : '';
+  const tableIndexImport = createIndexes ? ', TableIndex' : '';
+  const upIndexBlock = createIndexes ? `\n${createIndexes}` : '';
+  const dropTableLine = `    await queryRunner.dropTable('${names.tableName}', true);`;
+  const downBody = dropIndexes ? `${dropIndexes}\n${dropTableLine}` : dropTableLine;
 
-  return `import { MigrationInterface, QueryRunner, Table${tableForeignKeyImport} } from 'typeorm';
+  return `import { MigrationInterface, QueryRunner, Table${tableForeignKeyImport}${tableIndexImport} } from 'typeorm';
 
 export class ${className} implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -336,11 +342,11 @@ ${updatedAtColumn}${deletedAtColumn},
         ]${foreignKeys},
       }),
       true,
-    );
+    );${upIndexBlock}
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropTable('${names.tableName}', true);
+${downBody}
   }
 }
 `;

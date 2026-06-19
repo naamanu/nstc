@@ -206,6 +206,38 @@ test('hasMany and hasOne fields are excluded from create DTO', () => {
   assert.doesNotMatch(dto, /profile/);
 });
 
+test('migration emits createIndex for belongsTo fields in up', () => {
+  const migration = renderMigration(
+    names,
+    [makeField({ name: 'postId', type: 'uuid', relation: { kind: 'belongsTo', target: 'Post' } })],
+    '20260514123456',
+  );
+
+  assert.match(migration, /queryRunner\.createIndex/);
+  assert.match(migration, /IDX_posts_postId/);
+  assert.match(migration, /columnNames: \['postId'\]/);
+  assert.match(migration, /TableIndex/);
+});
+
+test('migration emits dropIndex for belongsTo fields in down', () => {
+  const migration = renderMigration(
+    names,
+    [makeField({ name: 'postId', type: 'uuid', relation: { kind: 'belongsTo', target: 'Post' } })],
+    '20260514123456',
+  );
+
+  assert.match(migration, /queryRunner\.dropIndex/);
+  assert.match(migration, /IDX_posts_postId/);
+});
+
+test('migration skips createIndex when no belongsTo fields', () => {
+  const migration = renderMigration(names, fields, '20260514123456');
+
+  assert.doesNotMatch(migration, /createIndex/);
+  assert.doesNotMatch(migration, /dropIndex/);
+  assert.doesNotMatch(migration, /TableIndex/);
+});
+
 test('hasMany and hasOne fields are excluded from migration columns', () => {
   const userNames = buildNames('user');
   const migration = renderMigration(
