@@ -12,6 +12,7 @@ User guides for **nstc** — the NestJS TypeORM scaffolder CLI.
 | [Configuration](configuration.md) | `.nstcrc.json` and `package.json` defaults, all config keys |
 | [Generated output](generated-output.md) | What each generated file contains, REST endpoints, option effects |
 | [Troubleshooting](troubleshooting.md) | Shell globbing, PostgreSQL UUIDs, entity registration, `--wire` caveats |
+| [Architecture](architecture.md) | How nstc works internally, the data pipeline, and AI agent integration |
 
 ## Quick reference
 
