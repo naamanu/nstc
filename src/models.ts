@@ -24,6 +24,7 @@ export const FILE_KINDS = [
   'entity',
   'dto',
   'migration',
+  'spec',
 ] as const;
 export type FileKind = (typeof FILE_KINDS)[number];
 
@@ -71,6 +72,7 @@ export interface ScaffoldConfig {
   softDelete: boolean;
   dryRun: boolean;
   force: boolean;
+  tests: boolean;
   verbose: boolean;
   wire: string | null;
   // Singular -> plural overrides for resource-name inflection (config-file only).

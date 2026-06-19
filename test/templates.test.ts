@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import { buildNames } from '../src/naming.js';
 import {
   renderController,
+  renderControllerSpec,
   renderCreateDto,
   renderEntity,
   renderMigration,
   renderService,
+  renderServiceSpec,
   renderUpdateDto,
 } from '../src/templates.js';
 import { makeField } from './helpers.js';
@@ -194,6 +196,24 @@ test('validation modifier decorators appear after standard validators', () => {
   const isNotEmpty = dto.indexOf('@IsNotEmpty');
   const minLen = dto.indexOf('@MinLength');
   assert.ok(isNotEmpty < minLen, '@IsNotEmpty should appear before @MinLength');
+});
+
+test('renderServiceSpec emits Test.createTestingModule with service provider', () => {
+  const serviceSpec = renderServiceSpec(names);
+
+  assert.match(serviceSpec, /Test\.createTestingModule/);
+  assert.match(serviceSpec, /PostService/);
+  assert.match(serviceSpec, /should be defined/);
+  assert.doesNotMatch(serviceSpec, /PostController/);
+});
+
+test('renderControllerSpec emits Test.createTestingModule with controller and service', () => {
+  const controllerSpec = renderControllerSpec(names);
+
+  assert.match(controllerSpec, /Test\.createTestingModule/);
+  assert.match(controllerSpec, /PostController/);
+  assert.match(controllerSpec, /PostService/);
+  assert.match(controllerSpec, /should be defined/);
 });
 
 test('hasMany field renders @OneToMany decorator and no column', () => {

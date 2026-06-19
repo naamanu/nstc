@@ -187,6 +187,35 @@ test('refuses to overwrite existing files without force', async () => {
   }
 });
 
+test('--tests generates service and controller spec stubs', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
+
+  try {
+    const result = await generateResource(
+      makeGenerateCommand({
+        cwd,
+        resource: 'post',
+        timestamp: '20260514123456',
+        tests: true,
+        fields: [{ name: 'title', type: 'string', optional: false, unique: false, relation: null }],
+      }),
+    );
+
+    assert.equal(result.files.length, 9);
+    assert.ok(existsSync(path.join(cwd, 'src/resources/posts/posts.service.spec.ts')));
+    assert.ok(existsSync(path.join(cwd, 'src/resources/posts/posts.controller.spec.ts')));
+
+    const serviceSpec = await readFile(
+      path.join(cwd, 'src/resources/posts/posts.service.spec.ts'),
+      'utf8',
+    );
+    assert.match(serviceSpec, /PostService/);
+    assert.match(serviceSpec, /Test\.createTestingModule/);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
 test('--force overwrites existing files', async () => {
   const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
 

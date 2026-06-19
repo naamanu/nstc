@@ -12,11 +12,13 @@ import type {
 import { includeKind, resolveRenderOptions } from './types.js';
 import {
   renderController,
+  renderControllerSpec,
   renderCreateDto,
   renderEntity,
   renderMigration,
   renderModule,
   renderService,
+  renderServiceSpec,
   renderUpdateDto,
 } from './templates.js';
 import type { ResourceNames } from './models.js';
@@ -94,6 +96,16 @@ function planFiles(
       `${migrationDir}/${migrationFile}`,
       renderMigration(names, command.fields, timestamp, options),
     ],
+    ...(command.tests
+      ? ([
+          ['spec', `${baseDir}/${names.kebabPlural}.service.spec.ts`, renderServiceSpec(names)],
+          [
+            'spec',
+            `${baseDir}/${names.kebabPlural}.controller.spec.ts`,
+            renderControllerSpec(names),
+          ],
+        ] as Array<[FileKind, string, string]>)
+      : []),
   ];
 
   return files

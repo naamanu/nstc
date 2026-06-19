@@ -234,6 +234,13 @@ test('rejects hasMany without a target model', () => {
   assert.throws(() => parseField('avatar:hasOne'), /Missing relation target/);
 });
 
+test('--tests flag sets tests: true', () => {
+  const command = asGenerateCommand(
+    parseArgs(['generate', 'resource', 'post', 'title:string', '--tests']),
+  );
+  assert.equal(command.tests, true);
+});
+
 test('parses minLength and maxLength modifiers on string field', () => {
   const field = parseField('title:string:minLength:3:maxLength:100');
   assert.equal(field.minLength, 3);

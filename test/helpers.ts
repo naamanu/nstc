@@ -21,6 +21,7 @@ export const defaultScaffoldOptions = {
   softDelete: false,
   dryRun: false,
   force: false,
+  tests: false,
   verbose: false,
   wire: null,
   inflections: {},

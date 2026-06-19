@@ -302,6 +302,52 @@ export class Update${names.className}Dto extends PartialType(Create${names.class
 `;
 }
 
+export function renderServiceSpec(names: ResourceNames): string {
+  return `import { Test, TestingModule } from '@nestjs/testing';
+import { ${names.className}Service } from './${names.kebabPlural}.service';
+
+describe('${names.className}Service', () => {
+  let service: ${names.className}Service;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [${names.className}Service],
+    }).compile();
+
+    service = module.get<${names.className}Service>(${names.className}Service);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+`;
+}
+
+export function renderControllerSpec(names: ResourceNames): string {
+  return `import { Test, TestingModule } from '@nestjs/testing';
+import { ${names.className}Controller } from './${names.kebabPlural}.controller';
+import { ${names.className}Service } from './${names.kebabPlural}.service';
+
+describe('${names.className}Controller', () => {
+  let controller: ${names.className}Controller;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [${names.className}Controller],
+      providers: [${names.className}Service],
+    }).compile();
+
+    controller = module.get<${names.className}Controller>(${names.className}Controller);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+`;
+}
+
 export function renderMigration(
   names: ResourceNames,
   fields: FieldDefinition[],

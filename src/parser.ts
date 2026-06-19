@@ -29,6 +29,7 @@ const DEFAULT_OPTIONS: ScaffoldConfig = {
   softDelete: false,
   dryRun: false,
   force: false,
+  tests: false,
   verbose: false,
   wire: null,
   inflections: {},
@@ -129,6 +130,8 @@ function parseSharedOptions(tokens: string[], config: Partial<ScaffoldConfig>) {
       options.dryRun = true;
     } else if (token === '--force') {
       options.force = true;
+    } else if (token === '--tests') {
+      options.tests = true;
     } else if (token === '--verbose') {
       options.verbose = true;
     } else if (token === '--swagger') {
@@ -327,6 +330,7 @@ export function usage(): string {
     '  --swagger               Add @nestjs/swagger decorators to controller and DTOs',
     '  --pagination            Add skip/take query params to findAll',
     '  --wire <module.ts>      Import the generated module into a NestJS module file',
+    '  --tests                 Generate *.spec.ts stubs for controller and service',
     '  --dry-run               Print planned files without writing them',
     '  --verbose               Print generated file contents',
     '  --force                 Overwrite generated files if they already exist',
