@@ -191,6 +191,31 @@ test('parses field modifiers and generation flags', () => {
   assert.deepEqual(command.fields[1].relation, { kind: 'belongsTo', target: 'Profile' });
 });
 
+test('parses hasMany relation field', () => {
+  const field = parseField('posts:hasMany:Post');
+  assert.equal(field.name, 'posts');
+  assert.equal(field.type, 'hasMany');
+  assert.deepEqual(field.relation, { kind: 'hasMany', target: 'Post' });
+  assert.equal(field.optional, false);
+});
+
+test('parses hasOne relation field', () => {
+  const field = parseField('profile:hasOne:Profile');
+  assert.equal(field.name, 'profile');
+  assert.equal(field.type, 'hasOne');
+  assert.deepEqual(field.relation, { kind: 'hasOne', target: 'Profile' });
+});
+
+test('rejects optional modifier on hasMany and hasOne', () => {
+  assert.throws(() => parseField('posts?:hasMany:Post'), /cannot be optional/);
+  assert.throws(() => parseField('profile?:hasOne:Profile'), /cannot be optional/);
+});
+
+test('rejects hasMany without a target model', () => {
+  assert.throws(() => parseField('posts:hasMany'), /Missing relation target/);
+  assert.throws(() => parseField('avatar:hasOne'), /Missing relation target/);
+});
+
 test('parses destroy command', () => {
   const command = parseArgs(['destroy', 'resource', 'post', '--dry-run']);
 

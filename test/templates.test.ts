@@ -103,3 +103,56 @@ test('non-paginated resources keep the simple findAll', () => {
   assert.doesNotMatch(controller, /toPaginationInt/);
   assert.match(service, /find\(\)/);
 });
+
+test('hasMany field renders @OneToMany decorator and no column', () => {
+  const userNames = buildNames('user');
+  const entity = renderEntity(userNames, [
+    makeField({ name: 'posts', type: 'hasMany', relation: { kind: 'hasMany', target: 'Post' } }),
+  ]);
+
+  assert.match(entity, /OneToMany/);
+  assert.match(entity, /@OneToMany\(\(\) => Post, \(post\) => post\.user\)/);
+  assert.match(entity, /posts: Post\[\]/);
+  assert.doesNotMatch(entity, /@Column/);
+  assert.match(entity, /import { Post } from/);
+});
+
+test('hasOne field renders @OneToOne decorator and no column', () => {
+  const userNames = buildNames('user');
+  const entity = renderEntity(userNames, [
+    makeField({ name: 'profile', type: 'hasOne', relation: { kind: 'hasOne', target: 'Profile' } }),
+  ]);
+
+  assert.match(entity, /OneToOne/);
+  assert.match(entity, /@OneToOne\(\(\) => Profile, \(profile\) => profile\.user\)/);
+  assert.match(entity, /profile: Profile;/);
+  assert.doesNotMatch(entity, /@Column/);
+});
+
+test('hasMany and hasOne fields are excluded from create DTO', () => {
+  const userNames = buildNames('user');
+  const dto = renderCreateDto(userNames, [
+    makeField({ name: 'name', type: 'string' }),
+    makeField({ name: 'posts', type: 'hasMany', relation: { kind: 'hasMany', target: 'Post' } }),
+    makeField({ name: 'profile', type: 'hasOne', relation: { kind: 'hasOne', target: 'Profile' } }),
+  ]);
+
+  assert.match(dto, /name/);
+  assert.doesNotMatch(dto, /posts/);
+  assert.doesNotMatch(dto, /profile/);
+});
+
+test('hasMany and hasOne fields are excluded from migration columns', () => {
+  const userNames = buildNames('user');
+  const migration = renderMigration(
+    userNames,
+    [
+      makeField({ name: 'name', type: 'string' }),
+      makeField({ name: 'posts', type: 'hasMany', relation: { kind: 'hasMany', target: 'Post' } }),
+    ],
+    '20260514123456',
+  );
+
+  assert.match(migration, /name: 'name'/);
+  assert.doesNotMatch(migration, /name: 'posts'/);
+});

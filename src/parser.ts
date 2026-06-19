@@ -193,7 +193,29 @@ export function parseField(token: string): FieldDefinition {
   }
 
   const [, name, optionalMark] = nameMatch;
-  const type = TYPE_ALIASES.get(segments[1].toLowerCase());
+  const rawKind = segments[1].toLowerCase();
+
+  if (rawKind === 'hasmany' || rawKind === 'hasone') {
+    if (optionalMark) {
+      throw new Error(
+        `Field "${name}" cannot be optional: hasMany/hasOne are relation-only and have no column.`,
+      );
+    }
+    const relKind = rawKind === 'hasmany' ? 'hasMany' : ('hasOne' as const);
+    const target = segments[2];
+    if (!target) {
+      throw new Error(`Missing relation target for field "${name}". Use name:${relKind}:Model.`);
+    }
+    return {
+      name,
+      type: relKind,
+      optional: false,
+      unique: false,
+      relation: { kind: relKind, target },
+    };
+  }
+
+  const type = TYPE_ALIASES.get(rawKind);
   if (!type) {
     throw new Error(`Unknown type "${segments[1]}" for field "${name}".`);
   }

@@ -5,6 +5,7 @@ import {
   formatMigrationForeignKeys,
   formatMigrationIdColumn,
   formatMigrationTimestampColumn,
+  isRelationOnly,
   migrationColumnSpec,
   entityColumnOptions,
   relationEntityImport,
@@ -223,6 +224,12 @@ export function renderEntity(
     typeormImports.add('ManyToOne');
     typeormImports.add('JoinColumn');
   }
+  if (fields.some((field) => field.relation?.kind === 'hasMany')) {
+    typeormImports.add('OneToMany');
+  }
+  if (fields.some((field) => field.relation?.kind === 'hasOne')) {
+    typeormImports.add('OneToOne');
+  }
 
   const fieldLines = fields
     .flatMap((field) => renderEntityField(names, field, config, entityImports))
@@ -260,7 +267,8 @@ export function renderCreateDto(
   options: Partial<RenderOptions> = {},
 ): string {
   const config = renderOptions(options);
-  const validatorNames = collectValidatorImports(fields);
+  const dtoFields = fields.filter((f) => !isRelationOnly(f));
+  const validatorNames = collectValidatorImports(dtoFields);
   const swaggerNames = config.swagger ? ['ApiProperty', 'ApiPropertyOptional'] : [];
   const imports = [
     config.swagger ? `import { ${swaggerNames.join(', ')} } from '@nestjs/swagger';` : null,
@@ -270,7 +278,7 @@ export function renderCreateDto(
   ]
     .filter(Boolean)
     .join('\n');
-  const fieldLines = fields.map((field) => renderDtoField(field, config)).join('\n\n');
+  const fieldLines = dtoFields.map((field) => renderDtoField(field, config)).join('\n\n');
 
   return `${imports ? `${imports}\n\n` : ''}export class Create${names.className}Dto {
 ${fieldLines}
@@ -300,7 +308,8 @@ export function renderMigration(
 ): string {
   const config = renderOptions(options);
   const className = `Create${names.pluralClassName}${timestamp}`;
-  const columnLines = fields
+  const columnFields = fields.filter((f) => !isRelationOnly(f));
+  const columnLines = columnFields
     .map((field) => formatMigrationColumn(migrationColumnSpec(field, config)))
     .join(',\n');
   const idColumn = formatMigrationIdColumn(config.db, config.idStrategy);
@@ -309,7 +318,7 @@ export function renderMigration(
   const deletedAtColumn = config.softDelete
     ? `,\n${formatMigrationTimestampColumn('deletedAt', config.db, { nullable: true })}`
     : '';
-  const foreignKeys = formatMigrationForeignKeys(fields, config);
+  const foreignKeys = formatMigrationForeignKeys(columnFields, config);
   const tableForeignKeyImport = foreignKeys ? ', TableForeignKey' : '';
 
   return `import { MigrationInterface, QueryRunner, Table${tableForeignKeyImport} } from 'typeorm';
@@ -343,6 +352,25 @@ function renderEntityField(
   config: RenderOptions,
   entityImports: Map<string, { className: string; importPath: string }>,
 ): string[] {
+  if (field.relation?.kind === 'hasMany' || field.relation?.kind === 'hasOne') {
+    const targetNames = resolveRelationTarget(field.relation.target);
+    entityImports.set(targetNames.className, {
+      className: targetNames.className,
+      importPath: relationEntityImport(names, targetNames, config.resourceDir, config.entityDir),
+    });
+    const inverseProp = names.camel;
+    if (field.relation.kind === 'hasMany') {
+      return [
+        `  @OneToMany(() => ${targetNames.className}, (${targetNames.camel}) => ${targetNames.camel}.${inverseProp})
+  ${field.name}: ${targetNames.className}[];`,
+      ];
+    }
+    return [
+      `  @OneToOne(() => ${targetNames.className}, (${targetNames.camel}) => ${targetNames.camel}.${inverseProp})
+  ${field.name}: ${targetNames.className};`,
+    ];
+  }
+
   const meta = FIELD_TYPE_DEFS[field.type];
   const optional = field.optional ? '?' : '';
   const lines = [

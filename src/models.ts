@@ -8,7 +8,9 @@ export type FieldType =
   | 'date'
   | 'datetime'
   | 'uuid'
-  | 'json';
+  | 'json'
+  | 'hasMany'
+  | 'hasOne';
 
 export type DbDialect = 'postgres' | 'mysql' | 'sqlite';
 export type IdStrategy = 'uuid' | 'serial';
@@ -25,7 +27,7 @@ export const FILE_KINDS = [
 export type FileKind = (typeof FILE_KINDS)[number];
 
 export interface FieldRelation {
-  kind: 'belongsTo';
+  kind: 'belongsTo' | 'hasMany' | 'hasOne';
   target: string;
 }
 

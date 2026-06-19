@@ -35,7 +35,8 @@ interface FieldTypeDef {
   ts: string;
   validators: string[];
   requiredExtra?: string[];
-  columnType: Record<DbDialect, string>;
+  // Absent for relation-only pseudo-types (hasMany, hasOne) that generate no DB column.
+  columnType?: Record<DbDialect, string>;
   hasLength?: boolean;
   lengthWhenSized?: number;
 }
@@ -96,6 +97,9 @@ export const FIELD_TYPE_DEFS: Record<FieldType, FieldTypeDef> = {
     validators: ['IsObject'],
     columnType: { postgres: 'jsonb', mysql: 'json', sqlite: 'text' },
   },
+  // Relation-only pseudo-types: no DB column, no DTO property, no validators.
+  hasMany: { ts: 'never', validators: [] },
+  hasOne: { ts: 'never', validators: [] },
 };
 
 interface IdColumnSpec {
@@ -226,10 +230,18 @@ export function relationPropertyName(field: FieldDefinition, targetNames: Resour
 }
 
 export function columnTypeFor(field: FieldDefinition, db: DbDialect): string {
-  return FIELD_TYPE_DEFS[field.type].columnType[db];
+  const def = FIELD_TYPE_DEFS[field.type];
+  if (!def.columnType)
+    throw new Error(`columnTypeFor called on relation-only field "${field.name}"`);
+  return def.columnType[db];
+}
+
+export function isRelationOnly(field: FieldDefinition): boolean {
+  return field.type === 'hasMany' || field.type === 'hasOne';
 }
 
 export function validatorsFor(field: FieldDefinition): string[] {
+  if (isRelationOnly(field)) return [];
   const def = FIELD_TYPE_DEFS[field.type];
   const names = field.optional
     ? [...def.validators]
@@ -239,6 +251,8 @@ export function validatorsFor(field: FieldDefinition): string[] {
 }
 
 export function entityColumnOptions(field: FieldDefinition, options: RenderOptions): string {
+  if (isRelationOnly(field))
+    throw new Error(`entityColumnOptions called on relation-only field "${field.name}"`);
   const def = FIELD_TYPE_DEFS[field.type];
   const type = columnTypeFor(field, options.db);
   const parts = [`type: '${type}'`];
@@ -263,6 +277,8 @@ export function migrationColumnSpec(
   field: FieldDefinition,
   options: RenderOptions,
 ): MigrationColumnSpec {
+  if (isRelationOnly(field))
+    throw new Error(`migrationColumnSpec called on relation-only field "${field.name}"`);
   const def = FIELD_TYPE_DEFS[field.type];
   const spec: MigrationColumnSpec = {
     name: field.name,
@@ -375,7 +391,7 @@ ${keys.join(',\n')},
 export function collectRelatedEntities(fields: FieldDefinition[]): ResourceNames[] {
   const related = new Map<string, ResourceNames>();
   for (const field of fields) {
-    if (field.relation?.kind === 'belongsTo') {
+    if (field.relation) {
       const targetNames = resolveRelationTarget(field.relation.target);
       related.set(targetNames.className, targetNames);
     }
