@@ -104,6 +104,70 @@ test('non-paginated resources keep the simple findAll', () => {
   assert.match(service, /find\(\)/);
 });
 
+test('enum field renders union type and @Column with enum array', () => {
+  const entity = renderEntity(names, [
+    makeField({ name: 'status', type: 'enum', enumValues: ['draft', 'published', 'archived'] }),
+  ]);
+
+  assert.match(entity, /@Column\(\{ type: 'enum', enum: \['draft', 'published', 'archived'\] \}\)/);
+  assert.match(entity, /status: 'draft' \| 'published' \| 'archived';/);
+});
+
+test('enum field falls back to varchar on sqlite', () => {
+  const entity = renderEntity(
+    names,
+    [makeField({ name: 'status', type: 'enum', enumValues: ['a', 'b'] })],
+    { db: 'sqlite' },
+  );
+
+  assert.match(entity, /@Column\(\{ type: 'varchar', length: 50 \}\)/);
+  assert.doesNotMatch(entity, /type: 'enum'/);
+});
+
+test('enum field renders @IsIn with values in DTO', () => {
+  const dto = renderCreateDto(names, [
+    makeField({ name: 'status', type: 'enum', enumValues: ['draft', 'published'] }),
+  ]);
+
+  assert.match(dto, /@IsIn\(\['draft', 'published'\]\)/);
+  assert.match(dto, /status: 'draft' \| 'published';/);
+  assert.match(dto, /import \{ IsIn \} from 'class-validator'/);
+});
+
+test('optional enum field includes @IsOptional in DTO', () => {
+  const dto = renderCreateDto(names, [
+    makeField({ name: 'status', type: 'enum', optional: true, enumValues: ['a', 'b'] }),
+  ]);
+
+  assert.match(dto, /@IsOptional\(\)/);
+  assert.match(dto, /@IsIn\(\['a', 'b'\]\)/);
+  assert.match(dto, /status\?: 'a' \| 'b';/);
+});
+
+test('enum field emits enum array in migration for postgres', () => {
+  const migration = renderMigration(
+    names,
+    [makeField({ name: 'status', type: 'enum', enumValues: ['draft', 'published'] })],
+    '20260514123456',
+  );
+
+  assert.match(migration, /type: 'enum'/);
+  assert.match(migration, /enum: \['draft', 'published'\]/);
+});
+
+test('enum field emits varchar in migration for sqlite', () => {
+  const migration = renderMigration(
+    names,
+    [makeField({ name: 'status', type: 'enum', enumValues: ['draft', 'published'] })],
+    '20260514123456',
+    { db: 'sqlite' },
+  );
+
+  assert.match(migration, /type: 'varchar'/);
+  assert.doesNotMatch(migration, /type: 'enum'/);
+  assert.doesNotMatch(migration, /enum:/);
+});
+
 test('hasMany field renders @OneToMany decorator and no column', () => {
   const userNames = buildNames('user');
   const entity = renderEntity(userNames, [

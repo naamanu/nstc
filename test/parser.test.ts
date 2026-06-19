@@ -191,6 +191,24 @@ test('parses field modifiers and generation flags', () => {
   assert.deepEqual(command.fields[1].relation, { kind: 'belongsTo', target: 'Profile' });
 });
 
+test('parses enum field with comma-separated values', () => {
+  const field = parseField('status:enum:draft,published,archived');
+  assert.equal(field.name, 'status');
+  assert.equal(field.type, 'enum');
+  assert.deepEqual(field.enumValues, ['draft', 'published', 'archived']);
+  assert.equal(field.optional, false);
+});
+
+test('parses optional enum field', () => {
+  const field = parseField('status?:enum:draft,published');
+  assert.equal(field.optional, true);
+  assert.deepEqual(field.enumValues, ['draft', 'published']);
+});
+
+test('rejects enum field with no values', () => {
+  assert.throws(() => parseField('status:enum'), /Missing enum values/);
+});
+
 test('parses hasMany relation field', () => {
   const field = parseField('posts:hasMany:Post');
   assert.equal(field.name, 'posts');

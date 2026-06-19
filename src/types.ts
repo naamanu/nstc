@@ -100,6 +100,13 @@ export const FIELD_TYPE_DEFS: Record<FieldType, FieldTypeDef> = {
   // Relation-only pseudo-types: no DB column, no DTO property, no validators.
   hasMany: { ts: 'never', validators: [] },
   hasOne: { ts: 'never', validators: [] },
+  // Enum values are stored on FieldDefinition.enumValues; ts/validators here are placeholders.
+  // Templates handle enum rendering specially to embed the actual values.
+  enum: {
+    ts: 'string',
+    validators: ['IsIn'],
+    columnType: { postgres: 'enum', mysql: 'enum', sqlite: 'varchar' },
+  },
 };
 
 interface IdColumnSpec {
@@ -253,6 +260,18 @@ export function validatorsFor(field: FieldDefinition): string[] {
 export function entityColumnOptions(field: FieldDefinition, options: RenderOptions): string {
   if (isRelationOnly(field))
     throw new Error(`entityColumnOptions called on relation-only field "${field.name}"`);
+
+  if (field.type === 'enum') {
+    const values = (field.enumValues ?? []).map((v) => `'${v}'`).join(', ');
+    const parts =
+      options.db === 'sqlite'
+        ? [`type: 'varchar'`, `length: 50`]
+        : [`type: 'enum'`, `enum: [${values}]`];
+    if (field.optional) parts.push('nullable: true');
+    if (field.unique) parts.push('unique: true');
+    return `{ ${parts.join(', ')} }`;
+  }
+
   const def = FIELD_TYPE_DEFS[field.type];
   const type = columnTypeFor(field, options.db);
   const parts = [`type: '${type}'`];
@@ -279,6 +298,26 @@ export function migrationColumnSpec(
 ): MigrationColumnSpec {
   if (isRelationOnly(field))
     throw new Error(`migrationColumnSpec called on relation-only field "${field.name}"`);
+
+  if (field.type === 'enum') {
+    if (options.db === 'sqlite') {
+      return {
+        name: field.name,
+        type: 'varchar',
+        length: 50,
+        isNullable: field.optional || undefined,
+        isUnique: field.unique || undefined,
+      };
+    }
+    return {
+      name: field.name,
+      type: 'enum',
+      enum: field.enumValues ?? [],
+      isNullable: field.optional || undefined,
+      isUnique: field.unique || undefined,
+    };
+  }
+
   const def = FIELD_TYPE_DEFS[field.type];
   const spec: MigrationColumnSpec = {
     name: field.name,
@@ -302,6 +341,11 @@ export function migrationColumnSpec(
 
 export function formatMigrationColumn(spec: MigrationColumnSpec): string {
   const lines = [`            name: '${spec.name}'`, `            type: '${spec.type}'`];
+
+  if (spec.enum && spec.enum.length > 0) {
+    const values = spec.enum.map((v) => `'${v}'`).join(', ');
+    lines.push(`            enum: [${values}]`);
+  }
 
   if (spec.length !== undefined) {
     lines.push(`            length: ${spec.length}`);

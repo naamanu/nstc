@@ -10,7 +10,8 @@ export type FieldType =
   | 'uuid'
   | 'json'
   | 'hasMany'
-  | 'hasOne';
+  | 'hasOne'
+  | 'enum';
 
 export type DbDialect = 'postgres' | 'mysql' | 'sqlite';
 export type IdStrategy = 'uuid' | 'serial';
@@ -37,6 +38,7 @@ export interface FieldDefinition {
   optional: boolean;
   unique: boolean;
   relation: FieldRelation | null;
+  enumValues?: string[];
 }
 
 export interface ResourceNames {
@@ -129,6 +131,7 @@ export interface MigrationColumnSpec {
   name: string;
   type: string;
   length?: number;
+  enum?: string[];
   isNullable?: boolean;
   isUnique?: boolean;
 }

@@ -373,9 +373,11 @@ function renderEntityField(
 
   const meta = FIELD_TYPE_DEFS[field.type];
   const optional = field.optional ? '?' : '';
+  const tsType =
+    field.type === 'enum' ? (field.enumValues ?? []).map((v) => `'${v}'`).join(' | ') : meta.ts;
   const lines = [
     `  @Column(${entityColumnOptions(field, config)})
-  ${field.name}${optional}: ${meta.ts};`,
+  ${field.name}${optional}: ${tsType};`,
   ];
 
   if (field.relation?.kind === 'belongsTo') {
@@ -402,6 +404,9 @@ function collectValidatorImports(fields: FieldDefinition[]): string[] {
 }
 
 function renderDtoField(field: FieldDefinition, config: RenderOptions): string {
+  if (field.type === 'enum') {
+    return renderEnumDtoField(field, config);
+  }
   const decorators: string[] = [];
   if (config.swagger) {
     decorators.push(field.optional ? 'ApiPropertyOptional' : 'ApiProperty');
@@ -414,4 +419,19 @@ function renderDtoField(field: FieldDefinition, config: RenderOptions): string {
 
   return `${decorators.map((name) => `  @${name}()`).join('\n')}
   ${field.name}${optional}: ${type};`;
+}
+
+function renderEnumDtoField(field: FieldDefinition, config: RenderOptions): string {
+  const values = field.enumValues ?? [];
+  const valuesLiteral = `[${values.map((v) => `'${v}'`).join(', ')}]`;
+  const unionType = values.map((v) => `'${v}'`).join(' | ');
+  const optional = field.optional ? '?' : '';
+  const lines: string[] = [];
+
+  if (config.swagger) lines.push(`  @${field.optional ? 'ApiPropertyOptional' : 'ApiProperty'}()`);
+  if (field.optional) lines.push('  @IsOptional()');
+  lines.push(`  @IsIn(${valuesLiteral})`);
+  lines.push(`  ${field.name}${optional}: ${unionType};`);
+
+  return lines.join('\n');
 }

@@ -195,6 +195,28 @@ export function parseField(token: string): FieldDefinition {
   const [, name, optionalMark] = nameMatch;
   const rawKind = segments[1].toLowerCase();
 
+  if (rawKind === 'enum') {
+    const rawValues = segments[2];
+    if (!rawValues) {
+      throw new Error(`Missing enum values for field "${name}". Use name:enum:val1,val2,...`);
+    }
+    const enumValues = rawValues
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (enumValues.length === 0) {
+      throw new Error(`Enum field "${name}" must have at least one value.`);
+    }
+    return {
+      name,
+      type: 'enum' as const,
+      optional: Boolean(optionalMark),
+      unique: false,
+      relation: null,
+      enumValues,
+    };
+  }
+
   if (rawKind === 'hasmany' || rawKind === 'hasone') {
     if (optionalMark) {
       throw new Error(
