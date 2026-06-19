@@ -12,6 +12,7 @@ import {
   relationEntityImport,
   relationPropertyName,
   resolveRelationTarget,
+  validationModifiers,
   validatorsFor,
 } from './types.js';
 import type { FieldDefinition, RenderOptions, ResourceNames } from './models.js';
@@ -405,6 +406,7 @@ function collectValidatorImports(fields: FieldDefinition[]): string[] {
   const names = new Set<string>();
   for (const field of fields) {
     for (const validator of validatorsFor(field)) names.add(validator);
+    for (const { decorator } of validationModifiers(field)) names.add(decorator);
   }
   return [...names].sort();
 }
@@ -420,11 +422,16 @@ function renderDtoField(field: FieldDefinition, config: RenderOptions): string {
   for (const validator of validatorsFor(field)) {
     decorators.push(validator);
   }
+  const modifiers = validationModifiers(field);
   const type = FIELD_TYPE_DEFS[field.type].ts;
   const optional = field.optional ? '?' : '';
+  const lines = [
+    ...decorators.map((name) => `  @${name}()`),
+    ...modifiers.map(({ decorator, value }) => `  @${decorator}(${value})`),
+    `  ${field.name}${optional}: ${type};`,
+  ];
 
-  return `${decorators.map((name) => `  @${name}()`).join('\n')}
-  ${field.name}${optional}: ${type};`;
+  return lines.join('\n');
 }
 
 function renderEnumDtoField(field: FieldDefinition, config: RenderOptions): string {

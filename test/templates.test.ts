@@ -168,6 +168,34 @@ test('enum field emits varchar in migration for sqlite', () => {
   assert.doesNotMatch(migration, /enum:/);
 });
 
+test('minLength and maxLength modifiers render in DTO with correct args', () => {
+  const dto = renderCreateDto(names, [
+    makeField({ name: 'title', type: 'string', minLength: 3, maxLength: 100 }),
+  ]);
+
+  assert.match(dto, /@MinLength\(3\)/);
+  assert.match(dto, /@MaxLength\(100\)/);
+  assert.match(dto, /import \{ [^}]*MinLength[^}]* \} from 'class-validator'/);
+});
+
+test('min and max modifiers render in DTO with correct args', () => {
+  const dto = renderCreateDto(names, [
+    makeField({ name: 'price', type: 'float', min: 0, max: 999 }),
+  ]);
+
+  assert.match(dto, /@Min\(0\)/);
+  assert.match(dto, /@Max\(999\)/);
+  assert.match(dto, /import \{ [^}]*Max[^}]* \} from 'class-validator'/);
+});
+
+test('validation modifier decorators appear after standard validators', () => {
+  const dto = renderCreateDto(names, [makeField({ name: 'title', type: 'string', minLength: 5 })]);
+
+  const isNotEmpty = dto.indexOf('@IsNotEmpty');
+  const minLen = dto.indexOf('@MinLength');
+  assert.ok(isNotEmpty < minLen, '@IsNotEmpty should appear before @MinLength');
+});
+
 test('hasMany field renders @OneToMany decorator and no column', () => {
   const userNames = buildNames('user');
   const entity = renderEntity(userNames, [

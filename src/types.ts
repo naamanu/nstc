@@ -247,6 +247,19 @@ export function isRelationOnly(field: FieldDefinition): boolean {
   return field.type === 'hasMany' || field.type === 'hasOne';
 }
 
+export function validationModifiers(
+  field: FieldDefinition,
+): { decorator: string; value: number }[] {
+  const result: { decorator: string; value: number }[] = [];
+  if (field.minLength !== undefined)
+    result.push({ decorator: 'MinLength', value: field.minLength });
+  if (field.maxLength !== undefined)
+    result.push({ decorator: 'MaxLength', value: field.maxLength });
+  if (field.min !== undefined) result.push({ decorator: 'Min', value: field.min });
+  if (field.max !== undefined) result.push({ decorator: 'Max', value: field.max });
+  return result;
+}
+
 export function validatorsFor(field: FieldDefinition): string[] {
   if (isRelationOnly(field)) return [];
   const def = FIELD_TYPE_DEFS[field.type];

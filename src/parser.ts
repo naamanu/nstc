@@ -269,6 +269,26 @@ export function parseField(token: string): FieldDefinition {
       continue;
     }
 
+    if (
+      modifier === 'minLength' ||
+      modifier === 'maxLength' ||
+      modifier === 'min' ||
+      modifier === 'max'
+    ) {
+      const rawVal = segments[++index];
+      const numVal = Number(rawVal);
+      if (rawVal === undefined || !Number.isFinite(numVal)) {
+        throw new Error(
+          `Field modifier "${modifier}" requires a numeric value for field "${name}".`,
+        );
+      }
+      if (modifier === 'minLength') field.minLength = numVal;
+      else if (modifier === 'maxLength') field.maxLength = numVal;
+      else if (modifier === 'min') field.min = numVal;
+      else field.max = numVal;
+      continue;
+    }
+
     throw new Error(`Unknown field modifier "${modifier}" for field "${name}".`);
   }
 

@@ -234,6 +234,30 @@ test('rejects hasMany without a target model', () => {
   assert.throws(() => parseField('avatar:hasOne'), /Missing relation target/);
 });
 
+test('parses minLength and maxLength modifiers on string field', () => {
+  const field = parseField('title:string:minLength:3:maxLength:100');
+  assert.equal(field.minLength, 3);
+  assert.equal(field.maxLength, 100);
+  assert.equal(field.type, 'string');
+});
+
+test('parses min and max modifiers on numeric field', () => {
+  const field = parseField('price:float:min:0:max:999');
+  assert.equal(field.min, 0);
+  assert.equal(field.max, 999);
+});
+
+test('rejects non-numeric value for minLength modifier', () => {
+  assert.throws(() => parseField('title:string:minLength:abc'), /requires a numeric value/);
+});
+
+test('parses validation modifiers alongside unique', () => {
+  const field = parseField('slug:string:unique:minLength:2:maxLength:50');
+  assert.equal(field.unique, true);
+  assert.equal(field.minLength, 2);
+  assert.equal(field.maxLength, 50);
+});
+
 test('parses destroy command', () => {
   const command = parseArgs(['destroy', 'resource', 'post', '--dry-run']);
 

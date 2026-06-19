@@ -39,6 +39,10 @@ export interface FieldDefinition {
   unique: boolean;
   relation: FieldRelation | null;
   enumValues?: string[];
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
 }
 
 export interface ResourceNames {
