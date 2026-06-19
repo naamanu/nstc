@@ -35,7 +35,8 @@ interface FieldTypeDef {
   ts: string;
   validators: string[];
   requiredExtra?: string[];
-  columnType: Record<DbDialect, string>;
+  // Absent for relation-only pseudo-types (hasMany, hasOne) that generate no DB column.
+  columnType?: Record<DbDialect, string>;
   hasLength?: boolean;
   lengthWhenSized?: number;
 }
@@ -95,6 +96,16 @@ export const FIELD_TYPE_DEFS: Record<FieldType, FieldTypeDef> = {
     ts: 'Record<string, unknown>',
     validators: ['IsObject'],
     columnType: { postgres: 'jsonb', mysql: 'json', sqlite: 'text' },
+  },
+  // Relation-only pseudo-types: no DB column, no DTO property, no validators.
+  hasMany: { ts: 'never', validators: [] },
+  hasOne: { ts: 'never', validators: [] },
+  // Enum values are stored on FieldDefinition.enumValues; ts/validators here are placeholders.
+  // Templates handle enum rendering specially to embed the actual values.
+  enum: {
+    ts: 'string',
+    validators: ['IsIn'],
+    columnType: { postgres: 'enum', mysql: 'enum', sqlite: 'varchar' },
   },
 };
 
@@ -175,6 +186,7 @@ export function resolveRenderOptions(command: ScaffoldConfig | GenerateCommand):
     resourceDir: command.resourceDir ?? 'resources',
     entityDir: command.entityDir ?? 'entities',
     dtoDir: command.dtoDir ?? 'dto',
+    ...(command.parent ? { parent: command.parent } : {}),
   };
 }
 
@@ -226,10 +238,31 @@ export function relationPropertyName(field: FieldDefinition, targetNames: Resour
 }
 
 export function columnTypeFor(field: FieldDefinition, db: DbDialect): string {
-  return FIELD_TYPE_DEFS[field.type].columnType[db];
+  const def = FIELD_TYPE_DEFS[field.type];
+  if (!def.columnType)
+    throw new Error(`columnTypeFor called on relation-only field "${field.name}"`);
+  return def.columnType[db];
+}
+
+export function isRelationOnly(field: FieldDefinition): boolean {
+  return field.type === 'hasMany' || field.type === 'hasOne';
+}
+
+export function validationModifiers(
+  field: FieldDefinition,
+): { decorator: string; value: number }[] {
+  const result: { decorator: string; value: number }[] = [];
+  if (field.minLength !== undefined)
+    result.push({ decorator: 'MinLength', value: field.minLength });
+  if (field.maxLength !== undefined)
+    result.push({ decorator: 'MaxLength', value: field.maxLength });
+  if (field.min !== undefined) result.push({ decorator: 'Min', value: field.min });
+  if (field.max !== undefined) result.push({ decorator: 'Max', value: field.max });
+  return result;
 }
 
 export function validatorsFor(field: FieldDefinition): string[] {
+  if (isRelationOnly(field)) return [];
   const def = FIELD_TYPE_DEFS[field.type];
   const names = field.optional
     ? [...def.validators]
@@ -239,6 +272,20 @@ export function validatorsFor(field: FieldDefinition): string[] {
 }
 
 export function entityColumnOptions(field: FieldDefinition, options: RenderOptions): string {
+  if (isRelationOnly(field))
+    throw new Error(`entityColumnOptions called on relation-only field "${field.name}"`);
+
+  if (field.type === 'enum') {
+    const values = (field.enumValues ?? []).map((v) => `'${v}'`).join(', ');
+    const parts =
+      options.db === 'sqlite'
+        ? [`type: 'varchar'`, `length: 50`]
+        : [`type: 'enum'`, `enum: [${values}]`];
+    if (field.optional) parts.push('nullable: true');
+    if (field.unique) parts.push('unique: true');
+    return `{ ${parts.join(', ')} }`;
+  }
+
   const def = FIELD_TYPE_DEFS[field.type];
   const type = columnTypeFor(field, options.db);
   const parts = [`type: '${type}'`];
@@ -263,6 +310,28 @@ export function migrationColumnSpec(
   field: FieldDefinition,
   options: RenderOptions,
 ): MigrationColumnSpec {
+  if (isRelationOnly(field))
+    throw new Error(`migrationColumnSpec called on relation-only field "${field.name}"`);
+
+  if (field.type === 'enum') {
+    if (options.db === 'sqlite') {
+      return {
+        name: field.name,
+        type: 'varchar',
+        length: 50,
+        isNullable: field.optional || undefined,
+        isUnique: field.unique || undefined,
+      };
+    }
+    return {
+      name: field.name,
+      type: 'enum',
+      enum: field.enumValues ?? [],
+      isNullable: field.optional || undefined,
+      isUnique: field.unique || undefined,
+    };
+  }
+
   const def = FIELD_TYPE_DEFS[field.type];
   const spec: MigrationColumnSpec = {
     name: field.name,
@@ -286,6 +355,11 @@ export function migrationColumnSpec(
 
 export function formatMigrationColumn(spec: MigrationColumnSpec): string {
   const lines = [`            name: '${spec.name}'`, `            type: '${spec.type}'`];
+
+  if (spec.enum && spec.enum.length > 0) {
+    const values = spec.enum.map((v) => `'${v}'`).join(', ');
+    lines.push(`            enum: [${values}]`);
+  }
 
   if (spec.length !== undefined) {
     lines.push(`            length: ${spec.length}`);
@@ -372,10 +446,36 @@ ${keys.join(',\n')},
         ]`;
 }
 
+export function formatMigrationIndexes(
+  tableName: string,
+  fields: FieldDefinition[],
+): { createIndexes: string; dropIndexes: string } {
+  const fkFields = fields.filter((f) => f.relation?.kind === 'belongsTo');
+  if (fkFields.length === 0) return { createIndexes: '', dropIndexes: '' };
+
+  const indexName = (fieldName: string) => `IDX_${tableName}_${fieldName}`;
+
+  const createIndexes = fkFields
+    .map(
+      (f) =>
+        `    await queryRunner.createIndex(\n` +
+        `      '${tableName}',\n` +
+        `      new TableIndex({ name: '${indexName(f.name)}', columnNames: ['${f.name}'] }),\n` +
+        `    );`,
+    )
+    .join('\n');
+
+  const dropIndexes = fkFields
+    .map((f) => `    await queryRunner.dropIndex('${tableName}', '${indexName(f.name)}');`)
+    .join('\n');
+
+  return { createIndexes, dropIndexes };
+}
+
 export function collectRelatedEntities(fields: FieldDefinition[]): ResourceNames[] {
   const related = new Map<string, ResourceNames>();
   for (const field of fields) {
-    if (field.relation?.kind === 'belongsTo') {
+    if (field.relation) {
       const targetNames = resolveRelationTarget(field.relation.target);
       related.set(targetNames.className, targetNames);
     }

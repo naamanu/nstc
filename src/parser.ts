@@ -29,8 +29,10 @@ const DEFAULT_OPTIONS: ScaffoldConfig = {
   softDelete: false,
   dryRun: false,
   force: false,
+  tests: false,
   verbose: false,
   wire: null,
+  parent: null,
   inflections: {},
   only: [],
   skip: [],
@@ -129,6 +131,8 @@ function parseSharedOptions(tokens: string[], config: Partial<ScaffoldConfig>) {
       options.dryRun = true;
     } else if (token === '--force') {
       options.force = true;
+    } else if (token === '--tests') {
+      options.tests = true;
     } else if (token === '--verbose') {
       options.verbose = true;
     } else if (token === '--swagger') {
@@ -161,6 +165,8 @@ function parseSharedOptions(tokens: string[], config: Partial<ScaffoldConfig>) {
       options.stringLength = readStringLengthOption(tokens, ++index);
     } else if (token === '--wire') {
       options.wire = readOptionValue(tokens, ++index, '--wire');
+    } else if (token === '--parent') {
+      options.parent = readOptionValue(tokens, ++index, '--parent');
     } else if (token === '--field') {
       fieldTokens.push(readOptionValue(tokens, ++index, '--field'));
     } else if (token.startsWith('--field=')) {
@@ -193,7 +199,51 @@ export function parseField(token: string): FieldDefinition {
   }
 
   const [, name, optionalMark] = nameMatch;
-  const type = TYPE_ALIASES.get(segments[1].toLowerCase());
+  const rawKind = segments[1].toLowerCase();
+
+  if (rawKind === 'enum') {
+    const rawValues = segments[2];
+    if (!rawValues) {
+      throw new Error(`Missing enum values for field "${name}". Use name:enum:val1,val2,...`);
+    }
+    const enumValues = rawValues
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (enumValues.length === 0) {
+      throw new Error(`Enum field "${name}" must have at least one value.`);
+    }
+    return {
+      name,
+      type: 'enum' as const,
+      optional: Boolean(optionalMark),
+      unique: false,
+      relation: null,
+      enumValues,
+    };
+  }
+
+  if (rawKind === 'hasmany' || rawKind === 'hasone') {
+    if (optionalMark) {
+      throw new Error(
+        `Field "${name}" cannot be optional: hasMany/hasOne are relation-only and have no column.`,
+      );
+    }
+    const relKind = rawKind === 'hasmany' ? 'hasMany' : ('hasOne' as const);
+    const target = segments[2];
+    if (!target) {
+      throw new Error(`Missing relation target for field "${name}". Use name:${relKind}:Model.`);
+    }
+    return {
+      name,
+      type: relKind,
+      optional: false,
+      unique: false,
+      relation: { kind: relKind, target },
+    };
+  }
+
+  const type = TYPE_ALIASES.get(rawKind);
   if (!type) {
     throw new Error(`Unknown type "${segments[1]}" for field "${name}".`);
   }
@@ -222,6 +272,26 @@ export function parseField(token: string): FieldDefinition {
         );
       }
       field.relation = { kind: 'belongsTo', target };
+      continue;
+    }
+
+    if (
+      modifier === 'minLength' ||
+      modifier === 'maxLength' ||
+      modifier === 'min' ||
+      modifier === 'max'
+    ) {
+      const rawVal = segments[++index];
+      const numVal = Number(rawVal);
+      if (rawVal === undefined || !Number.isFinite(numVal)) {
+        throw new Error(
+          `Field modifier "${modifier}" requires a numeric value for field "${name}".`,
+        );
+      }
+      if (modifier === 'minLength') field.minLength = numVal;
+      else if (modifier === 'maxLength') field.maxLength = numVal;
+      else if (modifier === 'min') field.min = numVal;
+      else field.max = numVal;
       continue;
     }
 
@@ -263,6 +333,8 @@ export function usage(): string {
     '  --swagger               Add @nestjs/swagger decorators to controller and DTOs',
     '  --pagination            Add skip/take query params to findAll',
     '  --wire <module.ts>      Import the generated module into a NestJS module file',
+    '  --parent <resource>     Generate a nested route under the parent resource',
+    '  --tests                 Generate *.spec.ts stubs for controller and service',
     '  --dry-run               Print planned files without writing them',
     '  --verbose               Print generated file contents',
     '  --force                 Overwrite generated files if they already exist',

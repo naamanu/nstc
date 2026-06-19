@@ -8,7 +8,10 @@ export type FieldType =
   | 'date'
   | 'datetime'
   | 'uuid'
-  | 'json';
+  | 'json'
+  | 'hasMany'
+  | 'hasOne'
+  | 'enum';
 
 export type DbDialect = 'postgres' | 'mysql' | 'sqlite';
 export type IdStrategy = 'uuid' | 'serial';
@@ -21,11 +24,12 @@ export const FILE_KINDS = [
   'entity',
   'dto',
   'migration',
+  'spec',
 ] as const;
 export type FileKind = (typeof FILE_KINDS)[number];
 
 export interface FieldRelation {
-  kind: 'belongsTo';
+  kind: 'belongsTo' | 'hasMany' | 'hasOne';
   target: string;
 }
 
@@ -35,6 +39,11 @@ export interface FieldDefinition {
   optional: boolean;
   unique: boolean;
   relation: FieldRelation | null;
+  enumValues?: string[];
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
 }
 
 export interface ResourceNames {
@@ -63,8 +72,10 @@ export interface ScaffoldConfig {
   softDelete: boolean;
   dryRun: boolean;
   force: boolean;
+  tests: boolean;
   verbose: boolean;
   wire: string | null;
+  parent: string | null;
   // Singular -> plural overrides for resource-name inflection (config-file only).
   inflections: Record<string, string>;
   // File-kind selection: when `only` is non-empty, generate/destroy is limited to
@@ -102,6 +113,7 @@ export interface RenderOptions {
   resourceDir: string;
   entityDir: string;
   dtoDir: string;
+  parent?: string;
 }
 
 export interface PlannedFile {
@@ -127,6 +139,7 @@ export interface MigrationColumnSpec {
   name: string;
   type: string;
   length?: number;
+  enum?: string[];
   isNullable?: boolean;
   isUnique?: boolean;
 }

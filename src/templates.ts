@@ -4,14 +4,18 @@ import {
   formatMigrationColumn,
   formatMigrationForeignKeys,
   formatMigrationIdColumn,
+  formatMigrationIndexes,
   formatMigrationTimestampColumn,
+  isRelationOnly,
   migrationColumnSpec,
   entityColumnOptions,
   relationEntityImport,
   relationPropertyName,
   resolveRelationTarget,
+  validationModifiers,
   validatorsFor,
 } from './types.js';
+import { buildNames } from './naming.js';
 import type { FieldDefinition, RenderOptions, ResourceNames } from './models.js';
 
 function renderOptions(options: Partial<RenderOptions> = {}): RenderOptions {
@@ -25,6 +29,7 @@ function renderOptions(options: Partial<RenderOptions> = {}): RenderOptions {
     resourceDir: options.resourceDir ?? 'resources',
     entityDir: options.entityDir ?? 'entities',
     dtoDir: options.dtoDir ?? 'dto',
+    ...(options.parent ? { parent: options.parent } : {}),
   };
 }
 
@@ -74,6 +79,7 @@ export function renderController(
   const config = renderOptions(options);
   const parsePipe = idPipe(config);
   const paramType = idType(config);
+  const parentNames = config.parent ? buildNames(config.parent) : null;
   const commonImports = [
     'Body',
     'Controller',
@@ -87,13 +93,9 @@ export function renderController(
   const queryImport = config.pagination ? ', Query' : '';
   const swaggerImports = config.swagger ? "\nimport { ApiTags } from '@nestjs/swagger';" : '';
   const swaggerDecorator = config.swagger ? `\n@ApiTags('${names.route}')` : '';
-  const findAllParams = config.pagination
-    ? "@Query('skip') skip?: string, @Query('take') take?: string"
-    : '';
-  const findAllBody = config.pagination
-    ? `    return this.${names.camel}Service.findAll(toPaginationInt(skip, 0), toPaginationInt(take, 25));`
-    : `    return this.${names.camel}Service.findAll();`;
-  const findAllSignature = config.pagination ? `findAll(${findAllParams})` : 'findAll()';
+  const route = parentNames
+    ? `${parentNames.route}/:${parentNames.camel}Id/${names.route}`
+    : names.route;
   // Query params are user-controlled strings; guard against NaN/negatives before
   // they reach the repository (a bare Number.parseInt('abc') would yield NaN).
   const paginationHelper = config.pagination
@@ -103,37 +105,75 @@ export function renderController(
 }\n`
     : '';
 
+  const parentParamDecl = parentNames
+    ? `@Param('${parentNames.camel}Id', ${parsePipe}) ${parentNames.camel}Id: ${paramType}`
+    : null;
+  const paginationParamDecl = config.pagination
+    ? `@Query('skip') skip?: string, @Query('take') take?: string`
+    : null;
+
+  // findAll: parent id and/or pagination params
+  let findAllSig: string;
+  let findAllArg: string;
+  if (parentParamDecl && paginationParamDecl) {
+    findAllSig = `findAll(\n    ${parentParamDecl},\n    ${paginationParamDecl},\n  )`;
+    findAllArg = `${parentNames!.camel}Id, toPaginationInt(skip, 0), toPaginationInt(take, 25)`;
+  } else if (parentParamDecl) {
+    findAllSig = `findAll(${parentParamDecl})`;
+    findAllArg = `${parentNames!.camel}Id`;
+  } else if (paginationParamDecl) {
+    findAllSig = `findAll(${paginationParamDecl})`;
+    findAllArg = `toPaginationInt(skip, 0), toPaginationInt(take, 25)`;
+  } else {
+    findAllSig = 'findAll()';
+    findAllArg = '';
+  }
+  const findAllBody = `    return this.${names.camel}Service.findAll(${findAllArg});`;
+
+  // Methods that take an :id param; parent id prepended when nested
+  const idParam = `@Param('id', ${parsePipe}) id: ${paramType}`;
+  const findOneParams = parentParamDecl
+    ? `\n    ${parentParamDecl},\n    ${idParam},\n  `
+    : idParam;
+  const updateParams = parentParamDecl
+    ? `\n    ${parentParamDecl},\n    ${idParam},\n    @Body() update${names.className}Dto: Update${names.className}Dto,\n  `
+    : `${idParam}, @Body() update${names.className}Dto: Update${names.className}Dto`;
+  const removeParams = parentParamDecl ? `\n    ${parentParamDecl},\n    ${idParam},\n  ` : idParam;
+  const createParams = parentParamDecl
+    ? `\n    ${parentParamDecl},\n    @Body() create${names.className}Dto: Create${names.className}Dto,\n  `
+    : `@Body() create${names.className}Dto: Create${names.className}Dto`;
+
   return `import { ${commonImports.join(', ')}${queryImport} } from '@nestjs/common';${swaggerImports}
 import { Create${names.className}Dto } from './${config.dtoDir}/create-${names.kebab}.dto';
 import { Update${names.className}Dto } from './${config.dtoDir}/update-${names.kebab}.dto';
 import { ${names.className}Service } from './${names.kebabPlural}.service';
 ${paginationHelper}${swaggerDecorator}
-@Controller('${names.route}')
+@Controller('${route}')
 export class ${names.className}Controller {
   constructor(private readonly ${names.camel}Service: ${names.className}Service) {}
 
   @Post()
-  create(@Body() create${names.className}Dto: Create${names.className}Dto) {
+  create(${createParams}) {
     return this.${names.camel}Service.create(create${names.className}Dto);
   }
 
   @Get()
-  ${findAllSignature} {
+  ${findAllSig} {
 ${findAllBody}
   }
 
   @Get(':id')
-  findOne(@Param('id', ${parsePipe}) id: ${paramType}) {
+  findOne(${findOneParams}) {
     return this.${names.camel}Service.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id', ${parsePipe}) id: ${paramType}, @Body() update${names.className}Dto: Update${names.className}Dto) {
+  update(${updateParams}) {
     return this.${names.camel}Service.update(id, update${names.className}Dto);
   }
 
   @Delete(':id')
-  remove(@Param('id', ${parsePipe}) id: ${paramType}) {
+  remove(${removeParams}) {
     return this.${names.camel}Service.remove(id);
   }
 }
@@ -143,18 +183,33 @@ ${findAllBody}
 export function renderService(names: ResourceNames, options: Partial<RenderOptions> = {}): string {
   const config = renderOptions(options);
   const paramType = idType(config);
+  const parentNames = config.parent ? buildNames(config.parent) : null;
   const removeMethod = config.softDelete
     ? `    await this.${names.camel}Repository.softRemove(${names.camel});`
     : `    await this.${names.camel}Repository.remove(${names.camel});`;
-  const findAllMethod = config.pagination
-    ? `  findAll(skip = 0, take = 25) {
+
+  let findAllMethod: string;
+  if (parentNames && config.pagination) {
+    findAllMethod = `  findAll(${parentNames.camel}Id: ${paramType}, skip = 0, take = 25) {
+    const safeSkip = Number.isFinite(skip) && skip >= 0 ? skip : 0;
+    const safeTake = Number.isFinite(take) && take > 0 ? Math.min(take, 100) : 25;
+    return this.${names.camel}Repository.find({ where: { ${parentNames.camel}Id } as any, skip: safeSkip, take: safeTake });
+  }`;
+  } else if (parentNames) {
+    findAllMethod = `  findAll(${parentNames.camel}Id: ${paramType}) {
+    return this.${names.camel}Repository.find({ where: { ${parentNames.camel}Id } as any });
+  }`;
+  } else if (config.pagination) {
+    findAllMethod = `  findAll(skip = 0, take = 25) {
     const safeSkip = Number.isFinite(skip) && skip >= 0 ? skip : 0;
     const safeTake = Number.isFinite(take) && take > 0 ? Math.min(take, 100) : 25;
     return this.${names.camel}Repository.find({ skip: safeSkip, take: safeTake });
-  }`
-    : `  findAll() {
+  }`;
+  } else {
+    findAllMethod = `  findAll() {
     return this.${names.camel}Repository.find();
   }`;
+  }
 
   return `import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -223,6 +278,12 @@ export function renderEntity(
     typeormImports.add('ManyToOne');
     typeormImports.add('JoinColumn');
   }
+  if (fields.some((field) => field.relation?.kind === 'hasMany')) {
+    typeormImports.add('OneToMany');
+  }
+  if (fields.some((field) => field.relation?.kind === 'hasOne')) {
+    typeormImports.add('OneToOne');
+  }
 
   const fieldLines = fields
     .flatMap((field) => renderEntityField(names, field, config, entityImports))
@@ -260,7 +321,8 @@ export function renderCreateDto(
   options: Partial<RenderOptions> = {},
 ): string {
   const config = renderOptions(options);
-  const validatorNames = collectValidatorImports(fields);
+  const dtoFields = fields.filter((f) => !isRelationOnly(f));
+  const validatorNames = collectValidatorImports(dtoFields);
   const swaggerNames = config.swagger ? ['ApiProperty', 'ApiPropertyOptional'] : [];
   const imports = [
     config.swagger ? `import { ${swaggerNames.join(', ')} } from '@nestjs/swagger';` : null,
@@ -270,7 +332,7 @@ export function renderCreateDto(
   ]
     .filter(Boolean)
     .join('\n');
-  const fieldLines = fields.map((field) => renderDtoField(field, config)).join('\n\n');
+  const fieldLines = dtoFields.map((field) => renderDtoField(field, config)).join('\n\n');
 
   return `${imports ? `${imports}\n\n` : ''}export class Create${names.className}Dto {
 ${fieldLines}
@@ -292,6 +354,52 @@ export class Update${names.className}Dto extends PartialType(Create${names.class
 `;
 }
 
+export function renderServiceSpec(names: ResourceNames): string {
+  return `import { Test, TestingModule } from '@nestjs/testing';
+import { ${names.className}Service } from './${names.kebabPlural}.service';
+
+describe('${names.className}Service', () => {
+  let service: ${names.className}Service;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [${names.className}Service],
+    }).compile();
+
+    service = module.get<${names.className}Service>(${names.className}Service);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+`;
+}
+
+export function renderControllerSpec(names: ResourceNames): string {
+  return `import { Test, TestingModule } from '@nestjs/testing';
+import { ${names.className}Controller } from './${names.kebabPlural}.controller';
+import { ${names.className}Service } from './${names.kebabPlural}.service';
+
+describe('${names.className}Controller', () => {
+  let controller: ${names.className}Controller;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [${names.className}Controller],
+      providers: [${names.className}Service],
+    }).compile();
+
+    controller = module.get<${names.className}Controller>(${names.className}Controller);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+`;
+}
+
 export function renderMigration(
   names: ResourceNames,
   fields: FieldDefinition[],
@@ -300,7 +408,8 @@ export function renderMigration(
 ): string {
   const config = renderOptions(options);
   const className = `Create${names.pluralClassName}${timestamp}`;
-  const columnLines = fields
+  const columnFields = fields.filter((f) => !isRelationOnly(f));
+  const columnLines = columnFields
     .map((field) => formatMigrationColumn(migrationColumnSpec(field, config)))
     .join(',\n');
   const idColumn = formatMigrationIdColumn(config.db, config.idStrategy);
@@ -309,10 +418,15 @@ export function renderMigration(
   const deletedAtColumn = config.softDelete
     ? `,\n${formatMigrationTimestampColumn('deletedAt', config.db, { nullable: true })}`
     : '';
-  const foreignKeys = formatMigrationForeignKeys(fields, config);
+  const foreignKeys = formatMigrationForeignKeys(columnFields, config);
+  const { createIndexes, dropIndexes } = formatMigrationIndexes(names.tableName, columnFields);
   const tableForeignKeyImport = foreignKeys ? ', TableForeignKey' : '';
+  const tableIndexImport = createIndexes ? ', TableIndex' : '';
+  const upIndexBlock = createIndexes ? `\n${createIndexes}` : '';
+  const dropTableLine = `    await queryRunner.dropTable('${names.tableName}', true);`;
+  const downBody = dropIndexes ? `${dropIndexes}\n${dropTableLine}` : dropTableLine;
 
-  return `import { MigrationInterface, QueryRunner, Table${tableForeignKeyImport} } from 'typeorm';
+  return `import { MigrationInterface, QueryRunner, Table${tableForeignKeyImport}${tableIndexImport} } from 'typeorm';
 
 export class ${className} implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -327,11 +441,11 @@ ${updatedAtColumn}${deletedAtColumn},
         ]${foreignKeys},
       }),
       true,
-    );
+    );${upIndexBlock}
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropTable('${names.tableName}', true);
+${downBody}
   }
 }
 `;
@@ -343,11 +457,32 @@ function renderEntityField(
   config: RenderOptions,
   entityImports: Map<string, { className: string; importPath: string }>,
 ): string[] {
+  if (field.relation?.kind === 'hasMany' || field.relation?.kind === 'hasOne') {
+    const targetNames = resolveRelationTarget(field.relation.target);
+    entityImports.set(targetNames.className, {
+      className: targetNames.className,
+      importPath: relationEntityImport(names, targetNames, config.resourceDir, config.entityDir),
+    });
+    const inverseProp = names.camel;
+    if (field.relation.kind === 'hasMany') {
+      return [
+        `  @OneToMany(() => ${targetNames.className}, (${targetNames.camel}) => ${targetNames.camel}.${inverseProp})
+  ${field.name}: ${targetNames.className}[];`,
+      ];
+    }
+    return [
+      `  @OneToOne(() => ${targetNames.className}, (${targetNames.camel}) => ${targetNames.camel}.${inverseProp})
+  ${field.name}: ${targetNames.className};`,
+    ];
+  }
+
   const meta = FIELD_TYPE_DEFS[field.type];
   const optional = field.optional ? '?' : '';
+  const tsType =
+    field.type === 'enum' ? (field.enumValues ?? []).map((v) => `'${v}'`).join(' | ') : meta.ts;
   const lines = [
     `  @Column(${entityColumnOptions(field, config)})
-  ${field.name}${optional}: ${meta.ts};`,
+  ${field.name}${optional}: ${tsType};`,
   ];
 
   if (field.relation?.kind === 'belongsTo') {
@@ -369,11 +504,15 @@ function collectValidatorImports(fields: FieldDefinition[]): string[] {
   const names = new Set<string>();
   for (const field of fields) {
     for (const validator of validatorsFor(field)) names.add(validator);
+    for (const { decorator } of validationModifiers(field)) names.add(decorator);
   }
   return [...names].sort();
 }
 
 function renderDtoField(field: FieldDefinition, config: RenderOptions): string {
+  if (field.type === 'enum') {
+    return renderEnumDtoField(field, config);
+  }
   const decorators: string[] = [];
   if (config.swagger) {
     decorators.push(field.optional ? 'ApiPropertyOptional' : 'ApiProperty');
@@ -381,9 +520,29 @@ function renderDtoField(field: FieldDefinition, config: RenderOptions): string {
   for (const validator of validatorsFor(field)) {
     decorators.push(validator);
   }
+  const modifiers = validationModifiers(field);
   const type = FIELD_TYPE_DEFS[field.type].ts;
   const optional = field.optional ? '?' : '';
+  const lines = [
+    ...decorators.map((name) => `  @${name}()`),
+    ...modifiers.map(({ decorator, value }) => `  @${decorator}(${value})`),
+    `  ${field.name}${optional}: ${type};`,
+  ];
 
-  return `${decorators.map((name) => `  @${name}()`).join('\n')}
-  ${field.name}${optional}: ${type};`;
+  return lines.join('\n');
+}
+
+function renderEnumDtoField(field: FieldDefinition, config: RenderOptions): string {
+  const values = field.enumValues ?? [];
+  const valuesLiteral = `[${values.map((v) => `'${v}'`).join(', ')}]`;
+  const unionType = values.map((v) => `'${v}'`).join(' | ');
+  const optional = field.optional ? '?' : '';
+  const lines: string[] = [];
+
+  if (config.swagger) lines.push(`  @${field.optional ? 'ApiPropertyOptional' : 'ApiProperty'}()`);
+  if (field.optional) lines.push('  @IsOptional()');
+  lines.push(`  @IsIn(${valuesLiteral})`);
+  lines.push(`  ${field.name}${optional}: ${unionType};`);
+
+  return lines.join('\n');
 }

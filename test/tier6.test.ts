@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -112,6 +112,53 @@ test('destroy honors --skip to leave matching files in place', async () => {
     assert.equal(result.removed.length, 1);
     assert.equal(existsSync(path.join(cwd, 'src/resources/posts')), false);
     assert.equal(existsSync(path.join(cwd, 'src/migrations/20260514123456-CreatePosts.ts')), true);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test('hasMany field generates @OneToMany in entity and skips migration column', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'nstc-'));
+
+  try {
+    await generateResource(
+      makeGenerateCommand({
+        cwd,
+        resource: 'user',
+        timestamp: '20260514123456',
+        dryRun: false,
+        fields: [
+          { name: 'name', type: 'string', optional: false, unique: false, relation: null },
+          {
+            name: 'posts',
+            type: 'hasMany',
+            optional: false,
+            unique: false,
+            relation: { kind: 'hasMany', target: 'Post' },
+          },
+        ],
+      }),
+    );
+
+    const entity = await readFile(
+      path.join(cwd, 'src/resources/users/entities/user.entity.ts'),
+      'utf8',
+    );
+    assert.match(entity, /@OneToMany\(\(\) => Post, \(post\) => post\.user\)/);
+    assert.match(entity, /posts: Post\[\]/);
+
+    const migration = await readFile(
+      path.join(cwd, 'src/migrations/20260514123456-CreateUsers.ts'),
+      'utf8',
+    );
+    assert.doesNotMatch(migration, /name: 'posts'/);
+    assert.match(migration, /name: 'name'/);
+
+    const dto = await readFile(
+      path.join(cwd, 'src/resources/users/dto/create-user.dto.ts'),
+      'utf8',
+    );
+    assert.doesNotMatch(dto, /posts/);
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }

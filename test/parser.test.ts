@@ -191,6 +191,87 @@ test('parses field modifiers and generation flags', () => {
   assert.deepEqual(command.fields[1].relation, { kind: 'belongsTo', target: 'Profile' });
 });
 
+test('parses enum field with comma-separated values', () => {
+  const field = parseField('status:enum:draft,published,archived');
+  assert.equal(field.name, 'status');
+  assert.equal(field.type, 'enum');
+  assert.deepEqual(field.enumValues, ['draft', 'published', 'archived']);
+  assert.equal(field.optional, false);
+});
+
+test('parses optional enum field', () => {
+  const field = parseField('status?:enum:draft,published');
+  assert.equal(field.optional, true);
+  assert.deepEqual(field.enumValues, ['draft', 'published']);
+});
+
+test('rejects enum field with no values', () => {
+  assert.throws(() => parseField('status:enum'), /Missing enum values/);
+});
+
+test('parses hasMany relation field', () => {
+  const field = parseField('posts:hasMany:Post');
+  assert.equal(field.name, 'posts');
+  assert.equal(field.type, 'hasMany');
+  assert.deepEqual(field.relation, { kind: 'hasMany', target: 'Post' });
+  assert.equal(field.optional, false);
+});
+
+test('parses hasOne relation field', () => {
+  const field = parseField('profile:hasOne:Profile');
+  assert.equal(field.name, 'profile');
+  assert.equal(field.type, 'hasOne');
+  assert.deepEqual(field.relation, { kind: 'hasOne', target: 'Profile' });
+});
+
+test('rejects optional modifier on hasMany and hasOne', () => {
+  assert.throws(() => parseField('posts?:hasMany:Post'), /cannot be optional/);
+  assert.throws(() => parseField('profile?:hasOne:Profile'), /cannot be optional/);
+});
+
+test('rejects hasMany without a target model', () => {
+  assert.throws(() => parseField('posts:hasMany'), /Missing relation target/);
+  assert.throws(() => parseField('avatar:hasOne'), /Missing relation target/);
+});
+
+test('--parent sets parent resource', () => {
+  const command = asGenerateCommand(
+    parseArgs(['generate', 'resource', 'comment', 'body:text', '--parent', 'post']),
+  );
+  assert.equal(command.parent, 'post');
+});
+
+test('--tests flag sets tests: true', () => {
+  const command = asGenerateCommand(
+    parseArgs(['generate', 'resource', 'post', 'title:string', '--tests']),
+  );
+  assert.equal(command.tests, true);
+});
+
+test('parses minLength and maxLength modifiers on string field', () => {
+  const field = parseField('title:string:minLength:3:maxLength:100');
+  assert.equal(field.minLength, 3);
+  assert.equal(field.maxLength, 100);
+  assert.equal(field.type, 'string');
+});
+
+test('parses min and max modifiers on numeric field', () => {
+  const field = parseField('price:float:min:0:max:999');
+  assert.equal(field.min, 0);
+  assert.equal(field.max, 999);
+});
+
+test('rejects non-numeric value for minLength modifier', () => {
+  assert.throws(() => parseField('title:string:minLength:abc'), /requires a numeric value/);
+});
+
+test('parses validation modifiers alongside unique', () => {
+  const field = parseField('slug:string:unique:minLength:2:maxLength:50');
+  assert.equal(field.unique, true);
+  assert.equal(field.minLength, 2);
+  assert.equal(field.maxLength, 50);
+});
+
 test('parses destroy command', () => {
   const command = parseArgs(['destroy', 'resource', 'post', '--dry-run']);
 
